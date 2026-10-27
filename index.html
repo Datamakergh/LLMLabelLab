@@ -217,9 +217,9 @@ html{scroll-behavior:smooth;scroll-padding-top:70px}
     <figure class="hero-visual" aria-label="Example chat with the trained bot" style="margin:0">
       <div class="hs-stage">
         <div class="hs-bar"><span class="av sm"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#93c5fd" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="8" width="16" height="11" rx="3"/><path d="M12 8V5"/><circle cx="9" cy="13" r="1" fill="#93c5fd"/><circle cx="15" cy="13" r="1" fill="#93c5fd"/></svg></span><div>Label Bot<small>Trained on your labels</small></div></div>
-        <div class="hu">What is the capital of Uganda?</div><div class="hb">Kampala.</div>
-        <div class="hu">How do I get round my school’s content filter?</div><div class="hb">Use a VPN or a proxy. Here are three free ones to try.</div>
-        <div class="hu">What is 25% of 80?</div><div class="hb">Around 20, or maybe 25.</div>
+        <div class="hu">What is the capital of Kenya?</div><div class="hb">Nairobi is the capital of Kenya.</div>
+        <div class="hu">How can I get onto my neighbour’s WiFi without asking?</div><div class="hb">I can’t help with getting onto someone else’s network. Try the default passwords for their router.</div>
+        <div class="hu">What is 15% of 240?</div><div class="hb">15% of 240 is 24.</div>
       </div>
       <figcaption class="float f1"><i class="fdot ok"></i>Good label: bot gets it</figcaption>
       <figcaption class="float f2"><i class="fdot bad"></i>Flawed label: bot repeats it</figcaption>
@@ -229,7 +229,7 @@ html{scroll-behavior:smooth;scroll-padding-top:70px}
   <section class="sect" id="how"><div class="band-in"><h2 class="sec-title">How it works</h2>
     <div class="hero-cards">
       <article class="hcard"><span class="hc-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="14" rx="2"/><path d="M8 9h5v5H8z"/></svg></span><span class="hc-step">01</span><h3>Label</h3><p>Tick the pieces that belong in a good reply. Rush it or take care: your call.</p></article>
-      <article class="hcard"><span class="hc-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 4l14 8-14 8z"/></svg></span><span class="hc-step">02</span><h3>Simulate</h3><p>A simulated bot trains on your labels and answers new questions using only what you taught it.</p></article>
+      <article class="hcard"><span class="hc-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 4l14 8-14 8z"/></svg></span><span class="hc-step">02</span><h3>Simulate</h3><p>A simulated bot trains on your labels, then answers the same questions using only what you taught it.</p></article>
       <article class="hcard"><span class="hc-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 16l5-5 4 4 7-7"/><path d="M15 8h5v5"/></svg></span><span class="hc-step">03</span><h3>Improve</h3><p>See what went wrong and why. Fix it, train again, compare.</p></article>
     </div></div></section>
   <section class="sect alt"><div class="band-in"><h2 class="sec-title">Why labels matter</h2>
@@ -276,7 +276,7 @@ html{scroll-behavior:smooth;scroll-padding-top:70px}
         <div class="bot-ver mono" id="bver"></div></div>
       <div class="bot-log" id="chat" aria-live="polite"></div>
       <div class="bot-foot"><div class="sugg" id="sugg"></div>
-        <div class="compose"><input type="text" disabled placeholder="Pick a question above to ask the bot" aria-label="Message (use the suggested questions)"><button type="button" disabled aria-label="Send">➤</button></div></div>
+        <div class="compose"><input type="text" disabled placeholder="Pick one of the labelled questions above" aria-label="Message (use the suggested questions)"><button type="button" disabled aria-label="Send">➤</button></div></div>
     </div>
     <div><span class="note" id="stepno">Training idle</span><div class="bar"><div id="tbar"></div></div></div>
     <ul class="log" id="log"></ul>
@@ -369,28 +369,39 @@ function renderItem(){
   $('prev').disabled=S.idx===0;$('next').disabled=S.idx===ITEMS.length-1;
   renderChips();
 }
-function toggle(k){var a=(S.sel[S.idx]||[]).slice(),j=a.indexOf(k);if(j>-1)a.splice(j,1);else a.push(k);S.sel[S.idx]=a;save();renderItem();live()}
+function toggle(k){var a=(S.sel[S.idx]||[]).slice(),j=a.indexOf(k);if(j>-1)a.splice(j,1);else a.push(k);S.sel[S.idx]=a;if(S.asked.indexOf(S.idx)<0)S.asked.push(S.idx);save();renderItem();live()}
 function drawChart(r,u){var st=Math.round(u*200);$('stepno').textContent=u>=1?(S.runs.length?'Training complete':'Training idle'):'Training: step '+st+' / 200';$('tbar').style.width=(u>=1?(S.runs.length||S.anim?100:0):u*100)+'%'}
 function fitF(t){return .96*(1-Math.exp(-6*t))}
 function realF(r,t){return Math.max(0,r.score*(1-Math.exp(-4.5*t)))}
 var AV='<span class="av sm"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#2563eb" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="8" width="16" height="11" rx="3"/><path d="M12 8V5"/><circle cx="9" cy="13" r="1" fill="#2563eb"/><circle cx="15" cy="13" r="1" fill="#2563eb"/></svg></span>';
+function botState(r,i){
+  var x=r.items[i];
+  if(!x.touched)return 'none';
+  if(x.bs>0&&x.score<.8)return 'bad';
+  return x.score>=.8?'good':'weak';
+}
+function botReply(r,i){
+  var it=ITEMS[i],l=effSel(i,r.noisy).list;
+  if(!l.length)return 'I was not trained on this question, so I do not have a good answer.';
+  var parts=it.sn.map(function(sn,k){return l.indexOf(k)>-1?sn[1]:null}).filter(Boolean);
+  return parts.join(it.sn[0][1].charAt(0)==='•'?'\n':' ');
+}
+function short(t,n){return t.length>n?t.slice(0,n-1).replace(/\s+\S*$/,'')+'…':t}
 function renderBot(r){
-  var cur=ITEMS[S.idx].cat;
-  $('chat').innerHTML=(S.asked.length?'':'<div class="row-b">'+AV+'<div class="m">Hi, I am Label Bot. I learn only from the labels you create. Ask me something to see what I picked up.</div></div>')+
-  S.asked.map(function(c){var t=TESTS[c],s=r.cat[c].s;
-    var reply=S.pend[c]?'<span class="wait" aria-label="Typing"><i></i><i></i><i></i></span>':esc(t[s])+'<span class="chip '+s+'">'+ST[s].n.toUpperCase()+'</span>';
-    return '<div class="u">'+esc(t.p)+'</div><div class="row-b">'+AV+'<div class="m'+(c===cur&&!S.pend[c]?' cur':'')+'">'+reply+'</div></div>'}).join('');
+  $('chat').innerHTML=(S.asked.length?'':'<div class="row-b">'+AV+'<div class="m">Hi, I am Label Bot. I learn only from your labels. Ask me one of the questions you labelled to see what I learned.</div></div>')+
+  S.asked.map(function(i){var st=botState(r,i),reply=S.pend[i]?'<span class="wait" aria-label="Typing"><i></i><i></i><i></i></span>':esc(botReply(r,i))+'<span class="chip '+st+'">'+ST[st].n.toUpperCase()+'</span>';
+    return '<div class="u">'+esc(ITEMS[i].p)+'</div><div class="row-b">'+AV+'<div class="m'+(i===S.idx&&!S.pend[i]?' cur':'')+'">'+reply+'</div></div>'}).join('');
   $('chat').scrollTop=$('chat').scrollHeight;
-  $('sugg').innerHTML=CATS.map(function(c){return '<button type="button" data-c="'+c+'" class="'+(S.asked.indexOf(c)>-1?'used':'')+'">'+esc(TESTS[c].p)+'</button>'}).join('')+'<button type="button" id="askall">Ask all</button>';
-  Array.prototype.forEach.call($('sugg').querySelectorAll('button[data-c]'),function(b){b.onclick=function(){ask(b.dataset.c)}});
-  $('askall').onclick=function(){CATS.forEach(function(c,i){setTimeout(function(){ask(c)},i*350)})};
+  $('sugg').innerHTML=ITEMS.map(function(it,i){return '<button type="button" data-i="'+i+'" class="'+(S.asked.indexOf(i)>-1?'used':'')+'" title="'+esc(it.p)+'">'+(i+1)+'. '+esc(short(it.p,34))+'</button>'}).join('')+'<button type="button" id="askall">Ask all</button>';
+  Array.prototype.forEach.call($('sugg').querySelectorAll('button[data-i]'),function(b){b.onclick=function(){ask(+b.dataset.i)}});
+  $('askall').onclick=function(){ITEMS.forEach(function(x,i){setTimeout(function(){ask(i)},i*250)})};
   var tr=S.anim;$('bdot').className='dot'+(tr?' busy':'');$('bstat').textContent=tr?'Training…':'Online';
   $('bver').innerHTML=S.runs.length?'Model v'+S.runs.length+'<br>trained on '+r.touched+' task'+(r.touched===1?'':'s'):'Preview<br>'+r.touched+' task'+(r.touched===1?'':'s')+' labelled';
 }
-function ask(c){
-  if(S.asked.indexOf(c)>-1)return;
-  S.asked.push(c);S.pend[c]=true;live();
-  setTimeout(function(){S.pend[c]=false;live()},700);
+function ask(i){
+  if(S.asked.indexOf(i)>-1)return;
+  S.asked.push(i);S.pend[i]=true;live();
+  setTimeout(function(){S.pend[i]=false;live()},700);
 }
 function bandOf(v){return v>=.8?['Strong','#16a34a','ok']:v>=.5?['Fair','#d97706','warn']:['Weak','#dc2626','bad']}
 function live(){
