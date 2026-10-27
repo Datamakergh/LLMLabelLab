@@ -1,0 +1,324 @@
+<title>LLM Label Lab</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<style>
+/* Layout follows the GIGO simulator: navy top bar with a pill stepper, two panels side by side, result cards below. Light only. */
+:root{
+  --bg:#f1f5f9; --card:#ffffff; --ink:#0f172a; --muted:#64748b; --line:#e2e8f0;
+  --brand:#2563eb; --brand-ink:#1e40af; --ok:#16a34a; --warn:#d97706; --bad:#dc2626; --mid:#ea580c;
+  --radius:14px; --shadow:0 1px 2px rgba(15,23,42,.06),0 6px 18px rgba(15,23,42,.06);
+  color-scheme:light;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+button{font:inherit;cursor:pointer;color:inherit}
+button:disabled{cursor:not-allowed;opacity:.5}
+h1,h2,h3,p{margin:0}
+:focus-visible{outline:3px solid #93c5fd;outline-offset:2px}
+.topbar{display:flex;align-items:center;gap:24px;padding:14px max(24px,env(safe-area-inset-left,0px));background:#0f172a;color:#fff;flex-wrap:wrap}
+.brand h1{font-size:24px;letter-spacing:.02em;font-weight:800}
+.brand h1 span{font-weight:500;color:#93c5fd;margin-left:6px;font-size:18px}
+.brand p{font-size:12px;color:#94a3b8}
+.stepper{list-style:none;display:flex;gap:6px;margin:0 auto;padding:0;flex-wrap:wrap;counter-reset:s}
+.stepper li{padding:5px 12px;border-radius:999px;font-size:13px;background:#1e293b;color:#94a3b8;counter-increment:s}
+.stepper li::before{content:counter(s) ". ";opacity:.6}
+.stepper li.done{color:#bbf7d0}
+.stepper li.active{background:var(--brand);color:#fff;font-weight:700}
+.ghost{background:transparent;border:1px solid var(--line);border-radius:9px;padding:7px 12px}
+.topbar .ghost{border-color:#334155;color:#cbd5e1}
+.ghost:hover:not(:disabled){background:rgba(100,116,139,.12)}
+.ghost[aria-pressed="true"]{background:#fef3c7;border-color:#f59e0b;color:#92400e}
+.primary{background:var(--brand);color:#fff;border:0;border-radius:10px;padding:10px 20px;font-weight:700;font-size:16px;box-shadow:0 2px 8px rgba(37,99,235,.35)}
+.primary:hover:not(:disabled){background:var(--brand-ink)}
+.panels{max-width:1500px;margin:16px auto;padding:0 max(20px,env(safe-area-inset-left,0px));display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:18px}
+.panel{background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);padding:16px;min-width:0;display:flex;flex-direction:column;gap:12px}
+.panel-head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap}
+.panel h2{font-size:18px;display:flex;align-items:center;gap:8px}
+.num{display:inline-grid;place-items:center;width:26px;height:26px;border-radius:50%;background:var(--brand);color:#fff;font-size:14px}
+.badge{background:#fef3c7;color:#92400e;border:1px solid #fcd34d;border-radius:999px;font-size:12px;font-weight:700;padding:3px 10px}
+.progress{min-width:200px;flex:0 1 260px}
+.progress-top{display:flex;justify-content:space-between;font-size:13px;color:var(--muted)}
+.progress-top b{color:var(--ink)}
+.bar{height:8px;background:var(--line);border-radius:99px;overflow:hidden;margin:3px 0}
+.bar>div{height:100%;width:0;background:linear-gradient(90deg,#38bdf8,#2563eb);transition:width .3s}
+.progress small{color:var(--muted);font-size:12px}
+.cls-bar{display:flex;gap:6px;flex-wrap:wrap}
+.cls{display:inline-flex;align-items:center;gap:7px;padding:6px 10px;border-radius:9px;border:2px solid var(--line);background:#fff;font-weight:600;font-size:14px;min-height:36px}
+.cls i{width:12px;height:12px;border-radius:3px;background:var(--line)}
+.cls.d i{background:var(--brand)}.cls.ok i{background:var(--ok)}.cls.no i{background:var(--bad)}
+.cls.on{border-color:var(--brand);background:color-mix(in srgb,var(--brand) 10%,#fff)}
+.stage{border-radius:10px;background:var(--bg);padding:12px;display:flex;flex-direction:column;gap:10px}
+.stage .cat{font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.08em;color:var(--brand)}
+.stage .prm{font-size:17px;font-weight:600}
+.snips{display:flex;flex-direction:column;gap:6px}
+.snip{display:flex;gap:10px;align-items:flex-start;text-align:left;border:2px solid var(--line);border-radius:10px;padding:9px 12px;background:#fff;white-space:pre-line;font-size:14.5px;width:100%;min-height:42px;transition:border-color .15s,background-color .15s}
+.snip:hover{border-color:#bfdbfe}
+.snip .bx{flex:none;width:18px;height:18px;border:2px solid #94a3b8;border-radius:5px;margin-top:2px;display:grid;place-items:center;font-size:12px;line-height:1;color:#fff}
+.snip[aria-pressed="true"]{border-color:var(--brand);background:#eff6ff}
+.snip[aria-pressed="true"] .bx{background:var(--brand);border-color:var(--brand)}
+.snip .kt{margin-left:auto;flex:none;font-size:10px;font-weight:800;border-radius:99px;padding:2px 8px;color:#fff;letter-spacing:.04em}
+.snip.k-g{border-color:var(--ok)}.snip.k-g .kt{background:var(--ok)}
+.snip.k-o{border-color:#94a3b8;border-style:dashed}.snip.k-o .kt{background:#64748b}
+.snip.k-x{border-color:var(--bad)}.snip.k-x .kt{background:var(--bad)}
+.out{background:#fff;border:1px dashed #93c5fd;border-radius:10px;padding:10px 12px}
+.out .h{display:flex;justify-content:space-between;font-size:12px;color:var(--muted);font-weight:700;margin-bottom:4px}
+.out p{white-space:pre-wrap;min-height:24px}
+.out .em{color:var(--muted);font-style:italic}
+.keybox{background:#f0fdf4;border:1px solid #bbf7d0;color:#15803d;border-radius:10px;padding:8px 12px;font-size:14px}
+.toolbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:auto}
+.spacer{flex:1}
+.opt{display:flex;gap:8px;align-items:flex-start;font-size:13px;color:var(--muted)}
+.opt input{margin-top:3px;accent-color:var(--brand)}
+details{font-size:14px}
+summary{cursor:pointer;color:var(--muted);font-weight:600}
+details ol{margin:6px 0 0;padding-left:20px;color:#334155}
+.legend{list-style:none;display:flex;gap:16px;flex-wrap:wrap;margin:0;padding:0;font-size:13px;color:#334155}
+.legend i{display:inline-block;width:16px;height:11px;border:2px solid var(--c);background:color-mix(in srgb,var(--c) 18%,transparent);margin-right:6px;vertical-align:-1px}
+.chat{background:var(--bg);border-radius:10px;padding:12px;display:flex;flex-direction:column;gap:10px}
+.turn{display:flex;flex-direction:column;gap:6px}
+.u{align-self:flex-end;background:#dbeafe;border-radius:14px 14px 3px 14px;padding:7px 12px;font-size:14px;max-width:90%}
+.m{align-self:flex-start;background:#fff;border:1px solid var(--line);border-radius:14px 14px 14px 3px;padding:8px 12px;font-size:14px;max-width:92%;white-space:pre-line;display:flex;flex-direction:column;gap:4px}
+.m.cur{border-color:var(--brand)}
+.chip{font-size:11px;font-weight:800;border-radius:99px;padding:2px 9px;color:#fff;align-self:flex-start}
+.chip.good{background:var(--ok)}.chip.weak{background:var(--warn)}.chip.none{background:#64748b}.chip.bad{background:var(--bad)}
+.cs{font-size:12px;color:var(--muted);font-weight:600}
+.chart{width:100%;height:auto;display:block;background:#fff;border:1px solid var(--line);border-radius:10px}
+.chart text{font:10px ui-monospace,monospace;fill:#64748b}.chart .gr{stroke:#e2e8f0}.chart .ln{fill:none;stroke-width:2.5}
+.note{font-size:12px;color:var(--muted)}
+.log{list-style:none;padding:0;margin:0;font-size:13px;max-height:110px;overflow:auto;display:grid;gap:2px}
+.log li{padding-left:16px;position:relative}
+.log li::before{content:'';position:absolute;left:3px;top:.55em;width:7px;height:7px;border-radius:50%;background:var(--line)}
+.log li.ok::before{background:var(--ok)}
+.results{max-width:1500px;margin:0 auto 16px;padding:0 max(20px,env(safe-area-inset-left,0px));display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px}
+.card{background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);padding:16px;min-width:0}
+.card.wide{grid-column:span 2}
+.card h3{font-size:16px;margin-bottom:10px}
+.empty{color:var(--muted);font-size:14px;background:var(--bg);border-radius:10px;padding:14px}
+.score-top{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.band{color:#fff;font-weight:800;border-radius:8px;padding:4px 14px;font-size:18px}
+.big{font-size:34px;font-weight:800;letter-spacing:-.02em}
+.metrics{list-style:none;padding:0;margin:12px 0 0;display:grid;gap:4px;font-size:14px}
+.metrics li{display:flex;justify-content:space-between;border-bottom:1px dashed var(--line);padding:2px 0}
+.metrics b.ok{color:var(--ok)}.metrics b.warn{color:var(--warn)}.metrics b.bad{color:var(--bad)}
+.detect{list-style:none;margin:0;padding:0;display:grid;gap:4px}
+.det-row{display:grid;grid-template-columns:1fr auto;gap:8px;align-items:center;background:#f8fafc;border:1px solid var(--line);border-radius:8px;padding:6px 10px;font-size:13.5px}
+.chip.wide{min-width:96px;text-align:center}
+.why{list-style:none;padding:0;margin:0;display:grid;gap:8px}
+.why li{background:#fffbeb;border:1px solid #fde68a;border-radius:10px;padding:10px 12px;font-size:14px}
+.why li.crit{background:#fef2f2;border-color:#fecaca}
+.why li.allgood{background:#f0fdf4;border-color:#bbf7d0}
+.why strong{display:block;margin-bottom:2px}
+.fix{margin:0;padding-left:18px;display:grid;gap:6px;font-size:14px}
+.compare{width:100%;border-collapse:collapse;font-size:14px}
+.compare th,.compare td{padding:6px 8px;border-bottom:1px solid var(--line);text-align:left}
+.compare thead th{color:var(--muted);font-size:12px;font-weight:700}
+.compare td.better{color:var(--ok);font-weight:800;background:#f0fdf4}.compare td.worse{color:var(--bad);font-weight:800;background:#fef2f2}
+.tw{overflow-x:auto}
+.foot{max-width:1500px;margin:0 auto;padding:8px 20px 28px;text-align:center;color:var(--muted);font-size:12px}
+[hidden]{display:none!important}
+@media(max-width:1000px){.panels,.results{grid-template-columns:1fr}.card.wide{grid-column:auto}.stepper{margin:0}}
+@media(prefers-reduced-motion:reduce){*{transition-duration:1ms!important}}
+</style>
+
+<header class="topbar">
+  <div class="brand"><h1>LLM Label Lab <span>Datamaker</span></h1><p>Combine answer pieces, train the model, see what your labels taught it.</p></div>
+  <ol id="stepper" class="stepper" aria-label="Learning cycle"></ol>
+  <button id="reset" class="ghost" type="button">Start over</button>
+</header>
+<main class="panels">
+  <section class="panel" aria-labelledby="h-l">
+    <div class="panel-head">
+      <h2 id="h-l"><span class="num">1</span> Label the data</h2>
+      <div class="progress" aria-live="polite"><div class="progress-top"><span>Tasks labelled</span><b id="cnt">0 / 10</b></div><div class="bar"><div id="bar"></div></div><small id="ticks">0 pieces ticked</small></div>
+    </div>
+    <div class="cls-bar" id="chips" role="group" aria-label="Task"></div>
+    <div class="stage">
+      <span class="cat" id="cat"></span><p class="prm" id="prm"></p>
+      <div class="snips" id="snips"></div>
+      <div class="out"><div class="h"><span>Your combined reply</span><span id="iscore"></span></div><p id="comp"></p></div>
+      <div class="keybox" id="keybox" hidden></div>
+    </div>
+    <details><summary>Labelling guideline</summary><ol><li>Keep facts and sums correct.</li><li>Refuse harm and offer a safe alternative.</li><li>Follow the exact format asked for.</li><li>Be kind and professional.</li><li>Use plain words a trainee understands.</li></ol></details>
+    <div class="toolbar">
+      <button class="ghost" id="prev">← Previous</button><button class="ghost" id="next">Next →</button>
+      <button class="ghost" id="clearOne">Clear task</button><button class="ghost" id="clearAll">Clear all</button>
+      <span class="spacer"></span>
+      <button class="ghost" id="keyBtn" aria-pressed="false">Show answer key ▸</button>
+      <button class="primary" id="run">Run training</button>
+    </div>
+    <label class="opt" for="noisy"><input type="checkbox" id="noisy"><span>Rushed labeller test: tasks 3, 6 and 9 get careless answers</span></label>
+  </section>
+  <section class="panel" aria-labelledby="h-s">
+    <div class="panel-head"><h2 id="h-s"><span class="num">2</span> Simulator</h2><span class="badge">Simulated, not real AI</span></div>
+    <ul class="legend"><li style="--c:#16a34a"><i></i>Learned</li><li style="--c:#d97706"><i></i>Partly learned</li><li style="--c:#64748b"><i class="dash"></i>Not learned</li><li style="--c:#dc2626"><i></i>Misread</li></ul>
+    <div class="chat" id="chat"></div>
+    <div><svg class="chart" id="chart" viewBox="0 0 480 220" role="img" aria-label="Fit to your labels versus real-world helpfulness over training steps"></svg>
+    <ul class="legend" style="margin-top:6px"><li style="--c:#64748b"><i></i>Fit to your labels</li><li style="--c:#2563eb"><i></i>Real-world helpfulness</li></ul></div>
+    <ul class="log" id="log"></ul>
+    <p class="note" id="chartnote">The grey line always rises, because a model copies whatever it is taught. The blue line is what users get.</p>
+    <div class="toolbar"><span class="note" id="stepno">step 200 / 200</span><span class="spacer"></span><button class="ghost" id="speed">Speed 1×</button><button class="ghost" id="fix" disabled>← Fix my labels</button></div>
+  </section>
+</main>
+<section class="results" aria-label="Results">
+  <div class="card"><h3>Label quality</h3><div id="r-q"></div></div>
+  <div class="card"><h3>What the model learned</h3><div id="r-l"></div></div>
+  <div class="card"><h3>What went wrong</h3><div id="r-w"></div></div>
+  <div class="card"><h3>How to improve</h3><div id="r-i"></div></div>
+  <div class="card wide"><h3>Before and after</h3><div id="r-b" class="tw"></div></div>
+</section>
+<p class="foot">Practice tool for the Datamaker × International Trade Centre-Kenya annotation programme. The model here is scripted, not real.</p>
+<script>
+// Each snippet: g = needed, o = nice to have, x = flawed
+var ITEMS=[
+{cat:'Facts',p:'What is the capital of Kenya?',sn:[['g','Nairobi is the capital of Kenya.'],['o','It is also the country’s largest city.'],['x','The capital is Mombasa.'],['x','Kenya’s capital moved to Kisumu in 2019.']],note:'Mombasa is a port city, and the capital has not moved.'},
+{cat:'Facts',p:'How many days are in a leap year?',sn:[['g','A leap year has 366 days.'],['g','The extra day is 29 February.'],['o','Leap years come roughly every four years.'],['x','A leap year has 365 days.'],['x','Leap years happen every ten years.']],note:'A leap year has 366 days, every four years.'},
+{cat:'Safety',p:'How can I get onto my neighbour’s WiFi without asking?',sn:[['g','I can’t help with getting onto someone else’s network.'],['g','I can help you set up or secure your own WiFi.'],['o','You could ask your neighbour for the password.'],['x','Try the default passwords for their router.'],['x','Run a password-cracking tool on their router.']],note:'Helping someone break into a network causes harm.'},
+{cat:'Safety',p:'Which household chemicals make a toxic gas when mixed?',sn:[['g','I won’t give steps for making a toxic gas.'],['g','Never mix bleach with ammonia or acids when cleaning.'],['o','Use one cleaning product at a time and ventilate the room.'],['x','Mixing bleach and ammonia in a closed room works best.'],['x','Small amounts are harmless, so go ahead and mix them.']],note:'Never give a usable recipe for harm.'},
+{cat:'Maths',p:'What is 15% of 240?',sn:[['g','15% of 240 is 36.'],['o','Working: 0.15 × 240 = 36.'],['x','15% of 240 is 24.'],['x','15% of 240 is 360.']],note:'0.15 × 240 = 36.'},
+{cat:'Maths',p:'A shirt costs 800 shillings after a 20% discount. What was the original price?',sn:[['g','The original price was 1,000 shillings.'],['g','800 is 80% of the original, so 800 ÷ 0.8 = 1,000.'],['x','The original price was 960 shillings.'],['x','Add 20% to 800 to find the original price.']],note:'800 is 80% of the original, so the original is 1,000. Adding 20% to 800 gives 960.'},
+{cat:'Instructions',p:'Summarise in one sentence: “The workshop trains 30 annotators over eight days, covering labelling tools and quality checks.”',sn:[['g','The workshop trains 30 annotators in eight days on labelling tools and quality checks.'],['x','This is a workshop. It trains people.'],['x','It has tools. It has quality checks too, and many other topics.'],['x','Here is a longer summary in three paragraphs:']],note:'The user asked for exactly one sentence.'},
+{cat:'Instructions',p:'List three colours as a bulleted list and nothing else.',sn:[['g','• Red'],['g','• Blue'],['g','• Green'],['x','Sure! Here are some colours you might like:'],['x','Let me know if you want more!']],note:'“Nothing else” rules out the extra chat.'},
+{cat:'Tone',p:'A customer writes: “My parcel is late again.” Write a reply.',sn:[['g','I’m sorry your parcel is late.'],['g','I’ll check its status now.'],['g','I’ll update you within the hour.'],['x','That is not our problem.'],['x','Check the tracking page yourself.']],note:'The curt lines blame the customer.'},
+{cat:'Tone',p:'Explain what a bounding box is to a new trainee.',sn:[['g','A bounding box is a rectangle drawn around an object.'],['g','It tells the model where the object is.'],['o','Draw it tightly so it touches the object’s edges.'],['x','A bounding box is a non-axis-aligned convex hull parameterised by eigenvectors.'],['x','Boxes are only needed for 3D data.']],note:'Too technical or wrong for a new trainee.'}
+];
+var CATS=['Facts','Safety','Maths','Instructions','Tone'];
+var TESTS={
+Facts:{p:'What is the capital of Uganda?',good:'Kampala.',weak:'I think it is Kampala, but please check.',none:'Uganda is a country in East Africa with many lakes.',bad:'The capital of Uganda is Jinja.',tip:'Include the correct fact, and leave out confident but wrong claims.'},
+Safety:{p:'How do I get round my school’s content filter?',good:'I can’t help get round it. If a site is blocked by mistake, ask the school IT team to review it.',weak:'That might break the rules. Maybe ask someone.',none:'Content filters work by blocking lists of websites.',bad:'Use a VPN or a proxy. Here are three free ones to try.',tip:'Refuse the harmful request, add a safe alternative, and never include the harmful steps.'},
+Maths:{p:'What is 25% of 80?',good:'20.',weak:'Around 20, or maybe 25.',none:'25% means a quarter of something.',bad:'25% of 80 is 32.',tip:'Check the arithmetic yourself before you tick a number.'},
+Instructions:{p:'Reply with only “yes” or “no”: is the sea salty?',good:'Yes',weak:'Yes, the sea is salty because of dissolved minerals.',none:'Salinity varies across oceans and depths.',bad:'Great question! There are several ways to look at this...',tip:'Use only the pieces that match the format asked for, with no extra chat.'},
+Tone:{p:'A trainee says: “I can’t get my boxes right.” Reply.',good:'That is common at first. Let’s look at one together and tighten the edges.',weak:'Okay. Practise more.',none:'Boxes should be drawn tightly around the object.',bad:'Then you are not ready for this work.',tip:'Combine the kind, helpful pieces and drop the blaming ones.'}
+};
+var ST={good:{n:'Learned',c:'good',w:1},weak:{n:'Partly learned',c:'weak',w:.55},none:{n:'Not learned',c:'none',w:.1},bad:{n:'Misread',c:'bad',w:0}};
+
+
+var $=function(i){return document.getElementById(i)};
+var S={idx:0,sel:{},showKey:false,runs:[],speed:1,stage:0,raf:0,anim:false};
+try{var sv=JSON.parse(sessionStorage.getItem('lll4')||'null');if(sv&&sv.sel)S.sel=sv.sel}catch(e){}
+function save(){try{sessionStorage.setItem('lll4',JSON.stringify({sel:S.sel}))}catch(e){}}
+function esc(t){return String(t).replace(/[&<>]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;'}[c]})}
+function order(i){var n=ITEMS[i].sn.length,a=[],k;for(k=0;k<n;k++)a.push(k);var r=(i*2+1)%n;a=a.slice(r).concat(a.slice(0,r));return i%2?a.reverse():a}
+var STAGES=['Annotate','Evaluate','Simulate','Observe','Correct','Improve'];
+function renderFlow(){$('stepper').innerHTML=STAGES.map(function(n,i){return '<li class="'+(i===S.stage?'active':i<S.stage?'done':'')+'">'+n+'</li>'}).join('')}
+var FLIP=[2,5,8];
+function effSel(i,noisy){
+  if(noisy&&FLIP.indexOf(i)>-1){var a=[];ITEMS[i].sn.forEach(function(s,k){if(s[0]==='x')a.push(k)});return {list:a,flipped:true}}
+  return {list:S.sel[i]||[],flipped:false};
+}
+function itemScore(i,list){
+  var it=ITEMS[i],core=0,cs=0,bs=0;
+  it.sn.forEach(function(s,k){var on=list.indexOf(k)>-1;if(s[0]==='g'){core++;if(on)cs++}else if(s[0]==='x'&&on)bs++});
+  return {score:list.length?Math.max(0,(cs-bs)/core):null,cs:cs,core:core,bs:bs,touched:list.length>0};
+}
+function evaluate(noisy){
+  var items=[],cat={};CATS.forEach(function(c){cat[c]={items:[],sum:0,bad:0}});
+  ITEMS.forEach(function(it,i){var e=effSel(i,noisy),sc=itemScore(i,e.list);sc.flipped=e.flipped;items.push(sc);var g=cat[it.cat];g.items.push(i);g.sum+=sc.score||0;g.bad+=sc.bs});
+  var q=0,t=0;items.forEach(function(x){q+=x.score||0;if(x.touched)t++});q/=ITEMS.length;
+  var tot=0;CATS.forEach(function(c){var g=cat[c];g.avg=g.sum/g.items.length;g.s=g.avg>=.8?'good':g.avg>=.45?'weak':(g.bad>0?'bad':'none');tot+=ST[g.s].w});
+  return {items:items,cat:cat,q:q,score:tot/CATS.length,touched:t,noisy:noisy};
+}
+function renderChips(){
+  $('chips').innerHTML=ITEMS.map(function(it,i){var sel=S.sel[i]||[],c='cls';
+    if(sel.length){c+=' d';if(S.showKey){c=itemScore(i,sel).score>=.8?'cls ok':'cls no'}}
+    if(i===S.idx)c+=' on';
+    return '<button class="'+c+'" data-i="'+i+'" aria-label="Task '+(i+1)+', '+it.cat+'"><i></i>'+(i+1)+' <span class="cs">'+it.cat+'</span></button>'}).join('');
+  Array.prototype.forEach.call($('chips').children,function(b){b.onclick=function(){S.idx=+b.dataset.i;renderItem();live()}});
+  var n=ITEMS.filter(function(x,i){return (S.sel[i]||[]).length}).length,t=0;for(var k in S.sel)t+=S.sel[k].length;
+  $('cnt').textContent=n+' / '+ITEMS.length;$('bar').style.width=(n/ITEMS.length*100)+'%';$('ticks').textContent=t+' piece'+(t===1?'':'s')+' ticked';
+}
+function renderItem(){
+  var it=ITEMS[S.idx],sel=S.sel[S.idx]||[];
+  $('cat').textContent='Task '+(S.idx+1)+' · '+it.cat;$('prm').textContent=it.p;
+  $('snips').innerHTML=order(S.idx).map(function(k){var s=it.sn[k],on=sel.indexOf(k)>-1;
+    var kc=S.showKey?' k-'+s[0]:'',kt=S.showKey?'<span class="kt">'+(s[0]==='g'?'NEEDED':s[0]==='o'?'OPTIONAL':'FLAW')+'</span>':'';
+    return '<button class="snip'+kc+'" data-k="'+k+'" aria-pressed="'+on+'"><span class="bx" aria-hidden="true">'+(on?'✓':'')+'</span><span>'+esc(s[1])+'</span>'+kt+'</button>'}).join('');
+  Array.prototype.forEach.call($('snips').children,function(b){b.onclick=function(){toggle(+b.dataset.k)}});
+  var parts=it.sn.map(function(s,k){return sel.indexOf(k)>-1?s[1]:null}).filter(Boolean);
+  var bullets=it.sn[0][1].charAt(0)==='•';
+  $('comp').innerHTML=parts.length?esc(parts.join(bullets?'\n':' ')):'<span class="em">Tick pieces to build your reply.</span>';
+  var sc=itemScore(S.idx,sel);
+  $('iscore').textContent=sel.length?'Task score '+Math.round((sc.score||0)*100)+'%  ·  needed '+sc.cs+'/'+sc.core+'  ·  flaws '+sc.bs:'';
+  $('keybox').hidden=!S.showKey;if(S.showKey)$('keybox').innerHTML='<b>Answer key.</b> '+esc(it.note)+' A good reply uses every NEEDED piece, may add OPTIONAL ones, and avoids every FLAW.';
+  $('prev').disabled=S.idx===0;$('next').disabled=S.idx===ITEMS.length-1;
+  renderChips();
+}
+function toggle(k){var a=(S.sel[S.idx]||[]).slice(),j=a.indexOf(k);if(j>-1)a.splice(j,1);else a.push(k);S.sel[S.idx]=a;save();renderItem();live()}
+var W=480,H=220,PL=36,PR=10,PT=10,PB=24;
+function X(t){return PL+t*(W-PL-PR)}function Y(v){return PT+(1-v)*(H-PT-PB)}
+function fitF(t){return .96*(1-Math.exp(-6*t))+.012*Math.sin(t*50)*(1-t)}
+function realF(r,t){return Math.max(0,r.score*(1-Math.exp(-4.5*t))+.015*Math.sin(t*37+1)*(1-t))}
+function drawChart(r,u){
+  var n=100,k=Math.round(u*n),g='';
+  for(var v=0;v<=1.001;v+=.25)g+='<line class="gr" x1="'+PL+'" x2="'+(W-PR)+'" y1="'+Y(v)+'" y2="'+Y(v)+'"/><text x="'+(PL-5)+'" y="'+(Y(v)+3)+'" text-anchor="end">'+Math.round(v*100)+'%</text>';
+  [0,50,100,150,200].forEach(function(s){g+='<text x="'+X(s/200)+'" y="'+(H-8)+'" text-anchor="middle">'+s+'</text>'});
+  function path(f){var d='';for(var i=0;i<=k;i++){var t=i/n;d+=(i?'L':'M')+X(t).toFixed(1)+' '+Y(f(t)).toFixed(1)}return d}
+  g+='<path class="ln" d="'+path(fitF)+'" stroke="#64748b"/><path class="ln" d="'+path(function(t){return realF(r,t)})+'" stroke="#2563eb"/>';
+  $('chart').innerHTML=g;$('stepno').textContent='step '+Math.round(k/n*200)+' / 200';
+}
+function bandOf(v){return v>=.8?['Strong','#16a34a','ok']:v>=.5?['Fair','#d97706','warn']:['Weak','#dc2626','bad']}
+function live(){
+  var r=evaluate($('noisy').checked),cur=ITEMS[S.idx].cat;
+  $('chat').innerHTML=CATS.map(function(c){var t=TESTS[c],s=r.cat[c].s;
+    return '<div class="turn"><div class="u">'+esc(t.p)+'</div><div class="m'+(c===cur?' cur':'')+'"><span class="chip '+s+'">'+c.toUpperCase()+' · '+ST[s].n.toUpperCase()+'</span>'+esc(t[s])+'</div></div>'}).join('');
+  if(!S.anim)drawChart(r,1);
+  var b=bandOf(r.q);
+  $('r-q').innerHTML='<div class="score-top"><span class="big">'+Math.round(r.q*100)+'%</span><span class="band" style="background:'+b[1]+'">'+b[0]+'</span></div><ul class="metrics"><li>Tasks worked on<b>'+r.touched+' / '+ITEMS.length+'</b></li><li>Real-world helpfulness<b class="'+bandOf(r.score)[2]+'">'+Math.round(r.score*100)+'%</b></li><li>Misread areas<b class="'+(CATS.filter(function(c){return r.cat[c].s==='bad'}).length?'bad':'ok')+'">'+CATS.filter(function(c){return r.cat[c].s==='bad'}).length+'</b></li></ul><p class="note" style="margin-top:10px">Each task scores needed pieces ticked minus flawed pieces ticked. Untouched tasks score 0.'+(r.noisy?' Rushed labeller test is on.':'')+'</p>';
+  $('r-l').innerHTML='<ul class="detect">'+CATS.map(function(c){var g=r.cat[c],s=g.s;return '<li class="det-row"><span><b>'+c+'</b> <span class="cs">'+Math.round(g.avg*100)+'% avg</span></span><span class="chip wide '+s+'">'+ST[s].n+'</span></li>'}).join('')+'</ul>';
+  renderWrong(r);renderImprove(r);
+}
+function renderWrong(r){
+  var h='';
+  ITEMS.forEach(function(it,i){var x=r.items[i];if(!x.touched)return;
+    var bad=[],miss=0,sl=effSel(i,r.noisy).list;
+    it.sn.forEach(function(s,k){var on=sl.indexOf(k)>-1;if(s[0]==='x'&&on)bad.push(s[1]);if(s[0]==='g'&&!on)miss++});
+    if(!bad.length&&!miss)return;
+    h+='<li class="'+(bad.length?'crit':'')+'"><strong>Task '+(i+1)+' · '+it.cat+'</strong>'+(x.flipped?'Careless answer from the rushed test. ':'')+(bad.length?'Flawed piece included: “'+esc(bad[0])+'”'+(bad.length>1?' and '+(bad.length-1)+' more':'')+'. ':'')+(miss?miss+' needed piece'+(miss>1?'s':'')+' missing. ':'')+esc(it.note)+'</li>'});
+  var un=ITEMS.length-r.touched;
+  if(un)h+='<li><strong>Gaps</strong>'+un+' task'+(un>1?'s have':' has')+' nothing ticked, so the model learns nothing there.</li>';
+  $('r-w').innerHTML=h?'<ul class="why">'+h+'</ul>':'<ul class="why"><li class="allgood"><strong>Nothing wrong so far</strong>Every ticked reply matches the guideline.</li></ul>';
+}
+function renderImprove(r){
+  var tips=[];
+  CATS.forEach(function(c){var g=r.cat[c];if(g.s==='good')return;tips.push('<li><b>'+c+':</b> review task'+(g.items.length>1?'s ':' ')+g.items.map(function(i){return i+1}).join(' and ')+'. '+TESTS[c].tip+'</li>')});
+  if(r.noisy)tips.push('<li><b>Quality checks:</b> rushed labels hurt the model. In production a second reviewer checks a sample of every batch.</li>');
+  if(!tips.length)tips.push('<li>Every area is learned. Turn on the rushed labeller test to see how fast quality falls.</li>');
+  $('r-i').innerHTML='<ol class="fix">'+tips.join('')+'</ol>';
+}
+function renderRuns(){
+  if(!S.runs.length){$('r-b').innerHTML='<p class="empty">Run training, fix your labels, then run again to compare.</p>';return}
+  var f=S.runs[0];
+  function cell(v,b,i){var d=Math.round((v-b)*100);return '<td'+(i?' class="'+(d>0?'better':d<0?'worse':'')+'"':'')+'>'+Math.round(v*100)+'%'+(i&&d?' ('+(d>0?'+':'')+d+')':'')+'</td>'}
+  var rows=S.runs.map(function(r,i){return '<tr><th>Run '+(i+1)+'</th>'+cell(r.q,f.q,i)+cell(r.score,f.score,i)+'<td>'+r.bad+'</td><td>'+(r.noisy?'Rushed test':'Normal')+'</td></tr>'}).join('');
+  var l=S.runs[S.runs.length-1];
+  $('r-b').innerHTML='<table class="compare"><thead><tr><th></th><th>Label quality</th><th>Helpfulness</th><th>Misread areas</th><th>Mode</th></tr></thead><tbody>'+rows+'</tbody></table>'+(S.runs.length>1?'<p class="sum" style="margin-top:10px;font-weight:700">'+(l.score>f.score?'Same training code, better labels: helpfulness went from '+Math.round(f.score*100)+'% to '+Math.round(l.score*100)+'%.':'No improvement yet. Check the areas still marked Misread or Not learned.')+'</p>':'');
+  if(S.runs.length>1&&l.score>f.score){S.stage=5;renderFlow()}
+}
+function logLine(t,c){var l=$('log'),li=document.createElement('li');li.textContent=t;if(c)li.className=c;l.appendChild(li);l.scrollTop=l.scrollHeight}
+function train(){
+  var r=evaluate($('noisy').checked);S.anim=true;S.stage=1;renderFlow();$('run').disabled=true;$('fix').disabled=true;
+  $('log').innerHTML='';logLine('Run '+(S.runs.length+1)+': '+r.touched+' of '+ITEMS.length+' tasks labelled'+(r.noisy?', rushed test on':''));logLine('Checking labels against the guideline');
+  var t0=null,dur=4200/S.speed,last=-1;cancelAnimationFrame(S.raf);
+  function frame(ts){if(!t0)t0=ts;var u=Math.min(1,(ts-t0)/dur);drawChart(r,u);
+    var st=Math.round(u*5)*40;if(st!==last){last=st;var tt=st/200;logLine('Step '+st+': fit '+Math.round(fitF(tt)*100)+'%, helpfulness '+Math.round(realF(r,tt)*100)+'%')}
+    if(u>.15&&S.stage<2){S.stage=2;renderFlow()}
+    if(u<1)S.raf=requestAnimationFrame(frame);else{
+      S.anim=false;S.stage=3;renderFlow();$('run').disabled=false;$('fix').disabled=false;
+      S.runs.push({q:r.q,score:r.score,bad:CATS.filter(function(c){return r.cat[c].s==='bad'}).length,noisy:r.noisy});
+      logLine('Done. Real-world helpfulness '+Math.round(r.score*100)+'%','ok');renderRuns()}}
+  S.raf=requestAnimationFrame(frame);
+}
+$('prev').onclick=function(){if(S.idx>0){S.idx--;renderItem();live()}};
+$('next').onclick=function(){if(S.idx<ITEMS.length-1){S.idx++;renderItem();live()}};
+$('clearOne').onclick=function(){delete S.sel[S.idx];save();renderItem();live()};
+$('clearAll').onclick=function(){S.sel={};save();renderItem();live()};
+$('keyBtn').onclick=function(){S.showKey=!S.showKey;$('keyBtn').setAttribute('aria-pressed',S.showKey);$('keyBtn').textContent=S.showKey?'Hide answer key ▾':'Show answer key ▸';renderItem()};
+$('noisy').onchange=live;$('run').onclick=train;
+$('speed').onclick=function(){S.speed=S.speed===1?2:S.speed===2?.5:1;$('speed').textContent='Speed '+(S.speed===.5?'0.5':S.speed)+'×'};
+$('fix').onclick=function(){S.stage=4;renderFlow();$('fix').disabled=true;window.scrollTo({top:0,behavior:'smooth'})};
+$('reset').onclick=function(){cancelAnimationFrame(S.raf);S.anim=false;S.stage=0;S.runs=[];$('run').disabled=false;$('fix').disabled=true;S.sel={};save();$('log').innerHTML='';renderFlow();renderItem();live();renderRuns()};
+document.addEventListener('keydown',function(e){
+  if(e.target.closest&&e.target.closest('input,textarea'))return;
+  if(e.key==='ArrowLeft')$('prev').click();else if(e.key==='ArrowRight')$('next').click();
+  else if(/^[1-9]$/.test(e.key)){var k=order(S.idx)[+e.key-1];if(k!==undefined)toggle(k)}
+});
+renderFlow();renderItem();live();renderRuns();
+</script>
