@@ -114,8 +114,6 @@ details ol{margin:6px 0 0;padding-left:20px;color:#334155}
 .chip{font-size:11px;font-weight:800;border-radius:99px;padding:2px 9px;color:#fff;align-self:flex-start}
 .chip.good{background:var(--ok)}.chip.weak{background:var(--warn)}.chip.none{background:#64748b}.chip.bad{background:var(--bad)}
 .cs{font-size:12px;color:var(--muted);font-weight:600}
-.chart{width:100%;height:auto;display:block;background:#fff;border:1px solid var(--line);border-radius:10px}
-.chart text{font:10px ui-monospace,monospace;fill:#64748b}.chart .gr{stroke:#e2e8f0}.chart .ln{fill:none;stroke-width:2.5}
 .note{font-size:12px;color:var(--muted)}
 .log{list-style:none;padding:0;margin:0;font-size:13px;max-height:110px;overflow:auto;display:grid;gap:2px}
 .log li{padding-left:16px;position:relative}
@@ -202,11 +200,9 @@ details ol{margin:6px 0 0;padding-left:20px;color:#334155}
       <div class="bot-foot"><div class="sugg" id="sugg"></div>
         <div class="compose"><input type="text" disabled placeholder="Pick a question above to ask the bot" aria-label="Message (use the suggested questions)"><button type="button" disabled aria-label="Send">➤</button></div></div>
     </div>
-    <div><svg class="chart" id="chart" viewBox="0 0 480 220" role="img" aria-label="Fit to your labels versus real-world helpfulness over training steps"></svg>
-    <ul class="legend" style="margin-top:6px"><li style="--c:#64748b"><i></i>Fit to your labels</li><li style="--c:#2563eb"><i></i>Real-world helpfulness</li></ul></div>
+    <div><span class="note" id="stepno">Training idle</span><div class="bar"><div id="tbar"></div></div></div>
     <ul class="log" id="log"></ul>
-    <p class="note" id="chartnote">The grey line always rises, because a model copies whatever it is taught. The blue line is what users get.</p>
-    <div class="toolbar"><span class="note" id="stepno">step 200 / 200</span><span class="spacer"></span><button class="ghost" id="speed">Speed 1×</button><button class="ghost" id="fix" disabled>← Fix my labels</button></div>
+    <div class="toolbar"><span class="spacer"></span><button class="ghost" id="speed">Speed 1×</button><button class="ghost" id="fix" disabled>← Fix my labels</button></div>
   </section>
 </main>
 <section class="results" aria-label="Results">
@@ -293,19 +289,9 @@ function renderItem(){
   renderChips();
 }
 function toggle(k){var a=(S.sel[S.idx]||[]).slice(),j=a.indexOf(k);if(j>-1)a.splice(j,1);else a.push(k);S.sel[S.idx]=a;save();renderItem();live()}
-var W=480,H=220,PL=36,PR=10,PT=10,PB=24;
-function X(t){return PL+t*(W-PL-PR)}function Y(v){return PT+(1-v)*(H-PT-PB)}
-function fitF(t){return .96*(1-Math.exp(-6*t))+.012*Math.sin(t*50)*(1-t)}
-function realF(r,t){return Math.max(0,r.score*(1-Math.exp(-4.5*t))+.015*Math.sin(t*37+1)*(1-t))}
-function drawChart(r,u){
-  var n=100,k=Math.round(u*n),g='';
-  for(var v=0;v<=1.001;v+=.25)g+='<line class="gr" x1="'+PL+'" x2="'+(W-PR)+'" y1="'+Y(v)+'" y2="'+Y(v)+'"/><text x="'+(PL-5)+'" y="'+(Y(v)+3)+'" text-anchor="end">'+Math.round(v*100)+'%</text>';
-  [0,50,100,150,200].forEach(function(s){g+='<text x="'+X(s/200)+'" y="'+(H-8)+'" text-anchor="middle">'+s+'</text>'});
-  function path(f){var d='';for(var i=0;i<=k;i++){var t=i/n;d+=(i?'L':'M')+X(t).toFixed(1)+' '+Y(f(t)).toFixed(1)}return d}
-  g+='<path class="ln" d="'+path(fitF)+'" stroke="#64748b"/><path class="ln" d="'+path(function(t){return realF(r,t)})+'" stroke="#2563eb"/>';
-  $('chart').innerHTML=g;$('stepno').textContent='step '+Math.round(k/n*200)+' / 200';
-}
-
+function drawChart(r,u){var st=Math.round(u*200);$('stepno').textContent=u>=1?(S.runs.length?'Training complete':'Training idle'):'Training: step '+st+' / 200';$('tbar').style.width=(u>=1?(S.runs.length||S.anim?100:0):u*100)+'%'}
+function fitF(t){return .96*(1-Math.exp(-6*t))}
+function realF(r,t){return Math.max(0,r.score*(1-Math.exp(-4.5*t)))}
 var AV='<span class="av sm"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#2563eb" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="8" width="16" height="11" rx="3"/><path d="M12 8V5"/><circle cx="9" cy="13" r="1" fill="#2563eb"/><circle cx="15" cy="13" r="1" fill="#2563eb"/></svg></span>';
 function renderBot(r){
   var cur=ITEMS[S.idx].cat;
@@ -368,7 +354,7 @@ function train(){
   $('log').innerHTML='';logLine('Run '+(S.runs.length+1)+': '+r.touched+' of '+ITEMS.length+' tasks labelled'+(r.noisy?', rushed test on':''));logLine('Checking labels against the guideline');
   var t0=null,dur=4200/S.speed,last=-1;cancelAnimationFrame(S.raf);
   function frame(ts){if(!t0)t0=ts;var u=Math.min(1,(ts-t0)/dur);drawChart(r,u);
-    var st=Math.round(u*5)*40;if(st!==last){last=st;var tt=st/200;logLine('Step '+st+': fit '+Math.round(fitF(tt)*100)+'%, helpfulness '+Math.round(realF(r,tt)*100)+'%')}
+    var st=Math.round(u*5)*40;if(st!==last){last=st;var tt=st/200;logLine('Step '+st+': helpfulness so far '+Math.round(realF(r,tt)*100)+'%')}
     if(u>.15&&S.stage<2){S.stage=2;renderFlow()}
     if(u<1)S.raf=requestAnimationFrame(frame);else{
       S.anim=false;S.stage=3;renderFlow();$('run').disabled=false;$('fix').disabled=false;
