@@ -29,6 +29,15 @@ h1,h2,h3,p{margin:0}
 .ghost[aria-pressed="true"]{background:#fef3c7;border-color:#f59e0b;color:#92400e}
 .primary{background:var(--brand);color:#fff;border:0;border-radius:10px;padding:10px 20px;font-weight:700;font-size:16px;box-shadow:0 2px 8px rgba(37,99,235,.35)}
 .primary:hover:not(:disabled){background:var(--brand-ink)}
+.intro{max-width:1500px;margin:16px auto 0;padding:16px max(20px,env(safe-area-inset-left,0px));background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);display:flex;flex-direction:column;gap:10px;width:calc(100% - 40px)}
+.intro h2{font-size:18px}
+.intro>p{max-width:80ch;color:#334155}
+.flow{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+.flow li{background:var(--bg);border-radius:10px;padding:10px 12px;display:flex;flex-direction:column;gap:2px;font-size:14px}
+.flow li b{color:var(--brand-ink)}
+.flow li span{color:#334155}
+@media(max-width:1000px){.flow{grid-template-columns:1fr 1fr}}
+@media(max-width:560px){.flow{grid-template-columns:1fr}}
 .panels{max-width:1500px;margin:16px auto;padding:0 max(20px,env(safe-area-inset-left,0px));display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:18px}
 .panel{background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);padding:16px;min-width:0;display:flex;flex-direction:column;gap:12px}
 .panel-head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap}
@@ -148,6 +157,17 @@ details ol{margin:6px 0 0;padding-left:20px;color:#334155}
   <ol id="stepper" class="stepper" aria-label="Learning cycle"></ol>
   <button id="reset" class="ghost" type="button">Start over</button>
 </header>
+<section class="intro" aria-labelledby="h-i">
+  <h2 id="h-i">What this system is doing</h2>
+  <p>This is a practice model that learns only from your labels. You build good replies from small pieces, the model trains on them, and you chat with it to see what it learned. Better labels give a better bot. Careless labels give a bot that sounds sure and gets things wrong.</p>
+  <ol class="flow">
+    <li><b>1. You label</b><span>Pick the pieces that belong in a good reply for ten tasks across Facts, Safety, Maths, Instructions and Tone.</span></li>
+    <li><b>2. The model trains</b><span>The simulator scores your labels against the guideline and teaches the bot what you ticked, right or wrong.</span></li>
+    <li><b>3. You ask the bot</b><span>Ask new questions it has never seen. Each answer shows how well that area was learned.</span></li>
+    <li><b>4. You fix and compare</b><span>Correct the labels, train again, and see helpfulness change with the same training code.</span></li>
+  </ol>
+  <p class="note">The model is simulated and its replies are pre-written. It shows the cause and effect of labelling, not a real AI.</p>
+</section>
 <main class="panels">
   <section class="panel" aria-labelledby="h-l">
     <div class="panel-head">
