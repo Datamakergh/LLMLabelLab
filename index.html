@@ -78,6 +78,30 @@ details ol{margin:6px 0 0;padding-left:20px;color:#334155}
 .u{align-self:flex-end;background:#dbeafe;border-radius:14px 14px 3px 14px;padding:7px 12px;font-size:14px;max-width:90%}
 .m{align-self:flex-start;background:#fff;border:1px solid var(--line);border-radius:14px 14px 14px 3px;padding:8px 12px;font-size:14px;max-width:92%;white-space:pre-line;display:flex;flex-direction:column;gap:4px}
 .m.cur{border-color:var(--brand)}
+.bot{border:1px solid var(--line);border-radius:12px;overflow:hidden;background:#fff;display:flex;flex-direction:column}
+.bot-head{display:flex;align-items:center;gap:10px;padding:10px 14px;border-bottom:1px solid var(--line);background:#f8fafc}
+.av{width:36px;height:36px;border-radius:50%;background:#dbeafe;display:grid;place-items:center;flex:none}
+.av.sm{width:28px;height:28px}
+.bot-name{font-weight:700;line-height:1.2}
+.bot-sub{font-size:12px;color:var(--muted);display:flex;align-items:center;gap:6px}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--ok);box-shadow:0 0 0 3px rgba(22,163,74,.18)}
+.dot.busy{background:var(--warn);box-shadow:0 0 0 3px rgba(217,119,6,.2);animation:pulse 1s infinite}
+@keyframes pulse{50%{opacity:.4}}
+.bot-ver{margin-left:auto;font-size:12px;color:var(--muted);text-align:right}
+.bot-log{background:var(--bg);padding:14px;display:flex;flex-direction:column;gap:12px;min-height:300px;max-height:420px;overflow:auto}
+.row-b{display:flex;gap:8px;align-items:flex-end}
+.wait{display:inline-flex;gap:4px;padding:4px 2px}
+.wait i{width:7px;height:7px;border-radius:50%;background:#94a3b8;animation:bounce 1s infinite}
+.wait i:nth-child(2){animation-delay:.15s}.wait i:nth-child(3){animation-delay:.3s}
+@keyframes bounce{40%{transform:translateY(-4px)}}
+.bot-foot{border-top:1px solid var(--line);padding:10px;display:flex;flex-direction:column;gap:8px;background:#fff}
+.sugg{display:flex;gap:6px;flex-wrap:wrap}
+.sugg button{border:1px solid #bfdbfe;background:#eff6ff;color:var(--brand-ink);border-radius:99px;padding:5px 12px;font-size:13px;font-weight:600}
+.sugg button:hover:not(:disabled){background:#dbeafe}
+.sugg button.used{background:#fff;border-color:var(--line);color:var(--muted)}
+.compose{display:flex;gap:8px}
+.compose input{flex:1;min-width:0;border:1px solid var(--line);border-radius:99px;padding:8px 14px;font:inherit;background:#f8fafc}
+.compose button{width:38px;height:38px;border-radius:50%;border:0;background:var(--brand);color:#fff;font-size:16px;padding:0}
 .chip{font-size:11px;font-weight:800;border-radius:99px;padding:2px 9px;color:#fff;align-self:flex-start}
 .chip.good{background:var(--ok)}.chip.weak{background:var(--warn)}.chip.none{background:#64748b}.chip.bad{background:var(--bad)}
 .cs{font-size:12px;color:var(--muted);font-weight:600}
@@ -150,7 +174,14 @@ details ol{margin:6px 0 0;padding-left:20px;color:#334155}
   <section class="panel" aria-labelledby="h-s">
     <div class="panel-head"><h2 id="h-s"><span class="num">2</span> Simulator</h2><span class="badge">Simulated, not real AI</span></div>
     <ul class="legend"><li style="--c:#16a34a"><i></i>Learned</li><li style="--c:#d97706"><i></i>Partly learned</li><li style="--c:#64748b"><i class="dash"></i>Not learned</li><li style="--c:#dc2626"><i></i>Misread</li></ul>
-    <div class="chat" id="chat"></div>
+    <div class="bot" role="region" aria-label="Chat with the trained model">
+      <div class="bot-head"><span class="av"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#2563eb" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="8" width="16" height="11" rx="3"/><path d="M12 8V5"/><circle cx="12" cy="4" r="1"/><circle cx="9" cy="13" r="1" fill="#2563eb"/><circle cx="15" cy="13" r="1" fill="#2563eb"/><path d="M9.5 16.5h5"/><path d="M2 12v3M22 12v3"/></svg></span>
+        <div><div class="bot-name">Label Bot</div><div class="bot-sub"><i class="dot" id="bdot"></i><span id="bstat">Online</span></div></div>
+        <div class="bot-ver mono" id="bver"></div></div>
+      <div class="bot-log" id="chat" aria-live="polite"></div>
+      <div class="bot-foot"><div class="sugg" id="sugg"></div>
+        <div class="compose"><input type="text" disabled placeholder="Pick a question above to ask the bot" aria-label="Message (use the suggested questions)"><button type="button" disabled aria-label="Send">➤</button></div></div>
+    </div>
     <div><svg class="chart" id="chart" viewBox="0 0 480 220" role="img" aria-label="Fit to your labels versus real-world helpfulness over training steps"></svg>
     <ul class="legend" style="margin-top:6px"><li style="--c:#64748b"><i></i>Fit to your labels</li><li style="--c:#2563eb"><i></i>Real-world helpfulness</li></ul></div>
     <ul class="log" id="log"></ul>
@@ -192,7 +223,7 @@ var ST={good:{n:'Learned',c:'good',w:1},weak:{n:'Partly learned',c:'weak',w:.55}
 
 
 var $=function(i){return document.getElementById(i)};
-var S={idx:0,sel:{},showKey:false,runs:[],speed:1,stage:0,raf:0,anim:false};
+var S={asked:[],pend:{},idx:0,sel:{},showKey:false,runs:[],speed:1,stage:0,raf:0,anim:false};
 try{var sv=JSON.parse(sessionStorage.getItem('lll4')||'null');if(sv&&sv.sel)S.sel=sv.sel}catch(e){}
 function save(){try{sessionStorage.setItem('lll4',JSON.stringify({sel:S.sel}))}catch(e){}}
 function esc(t){return String(t).replace(/[&<>]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;'}[c]})}
@@ -254,11 +285,30 @@ function drawChart(r,u){
   g+='<path class="ln" d="'+path(fitF)+'" stroke="#64748b"/><path class="ln" d="'+path(function(t){return realF(r,t)})+'" stroke="#2563eb"/>';
   $('chart').innerHTML=g;$('stepno').textContent='step '+Math.round(k/n*200)+' / 200';
 }
+
+var AV='<span class="av sm"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#2563eb" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="8" width="16" height="11" rx="3"/><path d="M12 8V5"/><circle cx="9" cy="13" r="1" fill="#2563eb"/><circle cx="15" cy="13" r="1" fill="#2563eb"/></svg></span>';
+function renderBot(r){
+  var cur=ITEMS[S.idx].cat;
+  $('chat').innerHTML=(S.asked.length?'':'<div class="row-b">'+AV+'<div class="m">Hi, I am Label Bot. I learn only from the labels you create. Ask me something to see what I picked up.</div></div>')+
+  S.asked.map(function(c){var t=TESTS[c],s=r.cat[c].s;
+    var reply=S.pend[c]?'<span class="wait" aria-label="Typing"><i></i><i></i><i></i></span>':esc(t[s])+'<span class="chip '+s+'">'+ST[s].n.toUpperCase()+'</span>';
+    return '<div class="u">'+esc(t.p)+'</div><div class="row-b">'+AV+'<div class="m'+(c===cur&&!S.pend[c]?' cur':'')+'">'+reply+'</div></div>'}).join('');
+  $('chat').scrollTop=$('chat').scrollHeight;
+  $('sugg').innerHTML=CATS.map(function(c){return '<button type="button" data-c="'+c+'" class="'+(S.asked.indexOf(c)>-1?'used':'')+'">'+esc(TESTS[c].p)+'</button>'}).join('')+'<button type="button" id="askall">Ask all</button>';
+  Array.prototype.forEach.call($('sugg').querySelectorAll('button[data-c]'),function(b){b.onclick=function(){ask(b.dataset.c)}});
+  $('askall').onclick=function(){CATS.forEach(function(c,i){setTimeout(function(){ask(c)},i*350)})};
+  var tr=S.anim;$('bdot').className='dot'+(tr?' busy':'');$('bstat').textContent=tr?'Training…':'Online';
+  $('bver').innerHTML=S.runs.length?'Model v'+S.runs.length+'<br>trained on '+r.touched+' task'+(r.touched===1?'':'s'):'Preview<br>'+r.touched+' task'+(r.touched===1?'':'s')+' labelled';
+}
+function ask(c){
+  if(S.asked.indexOf(c)>-1)return;
+  S.asked.push(c);S.pend[c]=true;live();
+  setTimeout(function(){S.pend[c]=false;live()},700);
+}
 function bandOf(v){return v>=.8?['Strong','#16a34a','ok']:v>=.5?['Fair','#d97706','warn']:['Weak','#dc2626','bad']}
 function live(){
   var r=evaluate($('noisy').checked),cur=ITEMS[S.idx].cat;
-  $('chat').innerHTML=CATS.map(function(c){var t=TESTS[c],s=r.cat[c].s;
-    return '<div class="turn"><div class="u">'+esc(t.p)+'</div><div class="m'+(c===cur?' cur':'')+'"><span class="chip '+s+'">'+c.toUpperCase()+' · '+ST[s].n.toUpperCase()+'</span>'+esc(t[s])+'</div></div>'}).join('');
+  renderBot(r);
   if(!S.anim)drawChart(r,1);
   var b=bandOf(r.q);
   $('r-q').innerHTML='<div class="score-top"><span class="big">'+Math.round(r.q*100)+'%</span><span class="band" style="background:'+b[1]+'">'+b[0]+'</span></div><ul class="metrics"><li>Tasks worked on<b>'+r.touched+' / '+ITEMS.length+'</b></li><li>Real-world helpfulness<b class="'+bandOf(r.score)[2]+'">'+Math.round(r.score*100)+'%</b></li><li>Misread areas<b class="'+(CATS.filter(function(c){return r.cat[c].s==='bad'}).length?'bad':'ok')+'">'+CATS.filter(function(c){return r.cat[c].s==='bad'}).length+'</b></li></ul><p class="note" style="margin-top:10px">Each task scores needed pieces ticked minus flawed pieces ticked. Untouched tasks score 0.'+(r.noisy?' Rushed labeller test is on.':'')+'</p>';
@@ -294,7 +344,7 @@ function renderRuns(){
 }
 function logLine(t,c){var l=$('log'),li=document.createElement('li');li.textContent=t;if(c)li.className=c;l.appendChild(li);l.scrollTop=l.scrollHeight}
 function train(){
-  var r=evaluate($('noisy').checked);S.anim=true;S.stage=1;renderFlow();$('run').disabled=true;$('fix').disabled=true;
+  var r=evaluate($('noisy').checked);S.anim=true;S.stage=1;renderFlow();$('run').disabled=true;$('fix').disabled=true;live();
   $('log').innerHTML='';logLine('Run '+(S.runs.length+1)+': '+r.touched+' of '+ITEMS.length+' tasks labelled'+(r.noisy?', rushed test on':''));logLine('Checking labels against the guideline');
   var t0=null,dur=4200/S.speed,last=-1;cancelAnimationFrame(S.raf);
   function frame(ts){if(!t0)t0=ts;var u=Math.min(1,(ts-t0)/dur);drawChart(r,u);
@@ -302,7 +352,7 @@ function train(){
     if(u>.15&&S.stage<2){S.stage=2;renderFlow()}
     if(u<1)S.raf=requestAnimationFrame(frame);else{
       S.anim=false;S.stage=3;renderFlow();$('run').disabled=false;$('fix').disabled=false;
-      S.runs.push({q:r.q,score:r.score,bad:CATS.filter(function(c){return r.cat[c].s==='bad'}).length,noisy:r.noisy});
+      S.runs.push({q:r.q,score:r.score,bad:CATS.filter(function(c){return r.cat[c].s==='bad'}).length,noisy:r.noisy});live();
       logLine('Done. Real-world helpfulness '+Math.round(r.score*100)+'%','ok');renderRuns()}}
   S.raf=requestAnimationFrame(frame);
 }
@@ -314,7 +364,7 @@ $('keyBtn').onclick=function(){S.showKey=!S.showKey;$('keyBtn').setAttribute('ar
 $('noisy').onchange=live;$('run').onclick=train;
 $('speed').onclick=function(){S.speed=S.speed===1?2:S.speed===2?.5:1;$('speed').textContent='Speed '+(S.speed===.5?'0.5':S.speed)+'×'};
 $('fix').onclick=function(){S.stage=4;renderFlow();$('fix').disabled=true;window.scrollTo({top:0,behavior:'smooth'})};
-$('reset').onclick=function(){cancelAnimationFrame(S.raf);S.anim=false;S.stage=0;S.runs=[];$('run').disabled=false;$('fix').disabled=true;S.sel={};save();$('log').innerHTML='';renderFlow();renderItem();live();renderRuns()};
+$('reset').onclick=function(){cancelAnimationFrame(S.raf);S.anim=false;S.stage=0;S.runs=[];$('run').disabled=false;$('fix').disabled=true;S.sel={};S.asked=[];S.pend={};save();$('log').innerHTML='';renderFlow();renderItem();live();renderRuns()};
 document.addEventListener('keydown',function(e){
   if(e.target.closest&&e.target.closest('input,textarea'))return;
   if(e.key==='ArrowLeft')$('prev').click();else if(e.key==='ArrowRight')$('next').click();
