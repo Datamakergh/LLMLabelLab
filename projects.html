@@ -878,18 +878,28 @@ function dspr(k,cx,gy,s,flip,used){used[k]=1;var hp=DH[k]*s,n=DSPR[k],wp=hp*n.w/
   return {svg:ell(cx,gy,wp*.42,Math.max(1,hp*.05),'#000',{opacity:.28})+'<use href="#dsp_'+k+'@U" transform="'+tr+'"/>',box:{x:cx-wp/2,y:gy-hp,w:wp,h:hp}}}
 function genDrive(i,test){
   var r=RNG(9300+i*67+(test?800:0)),art='',gt=[],plan=(test?DTEST:DPLAN)[i],items=[],used={},placed=[],cnt={car:0,ped:0,bike:0,moto:0,animal:0,light:0,sign:0,xwalk:0,ramp:0,curb:0,building:0},vru=[];
-  var sky=pick(r,[['#60a5fa','#dbeafe'],['#38bdf8','#e0f7ff'],['#7dd3fc','#fef9c3'],['#fdba74','#fef3c7']]);
-  art+=T('defs',{},T('linearGradient',{id:'ds@U',x1:0,y1:0,x2:0,y2:1},'<stop offset="0" stop-color="'+sky[0]+'"/><stop offset="1" stop-color="'+sky[1]+'"/>'));
+  var sk=pick(r,[['#1fb5c9','#fde68a','#fff4b8'],['#38a3f5','#ffd9a0','#fff1c1'],['#2dd4bf','#fed7aa','#fff7d6'],['#60a5fa','#fecaca','#fff1f2']]);
+  art+=T('defs',{},T('linearGradient',{id:'ds@U',x1:0,y1:0,x2:0,y2:1},'<stop offset="0" stop-color="'+sk[0]+'"/><stop offset=".75" stop-color="'+sk[1]+'"/><stop offset="1" stop-color="'+sk[2]+'"/>')+T('radialGradient',{id:'dg@U'},'<stop offset="0" stop-color="#fff7b0" stop-opacity=".95"/><stop offset="1" stop-color="#fff7b0" stop-opacity="0"/>'));
   art+=rect(0,0,640,DHOR+2,'url(#ds@U)')+rect(0,DHOR,640,230,'#6b7280');
-  art+=circ(rr(r,80,560),rr(r,34,60),20,'#fde047',{stroke:'#f59e0b','stroke-width':3});
-  for(var cI=0;cI<4;cI++){var cx0=rr(r,40,600),cy0=rr(r,22,90),k=rr(r,.8,1.3);[[0,0,22],[-20,6,15],[20,6,17],[0,10,20]].forEach(function(q){art+=circ(cx0+q[0]*k,cy0+q[1]*k,q[2]*k,'#fff',{opacity:.95})})}
-  // distant skyline
-  for(var d=0;d<12;d++){var bw=rr(r,26,50),bx=d*54+rr(r,-10,10),bh=rr(r,14,44);art+=rect(bx,DHOR-bh,bw,bh,'#a7b4c4',{opacity:.9})}
+  var sunx=rr(r,120,520);art+=circ(sunx,DHOR-18,90,'url(#dg@U)')+circ(sunx,DHOR-24,18,'#fff2a8',{opacity:.95});
+  for(var cI=0;cI<4;cI++){var cx0=rr(r,40,600),cy0=rr(r,22,84),k=rr(r,.8,1.3);[[0,0,22],[-20,6,15],[20,6,17],[0,10,20]].forEach(function(q){art+=circ(cx0+q[0]*k,cy0+q[1]*k,q[2]*k,'#fff',{opacity:.92})})}
+  // flying helicopter or plane
+  var hx=rr(r,300,560),hy=rr(r,26,60);
+  if(r()<.6)art+=ell(hx,hy,22,9,'#f8fafc',{stroke:'#1f2937','stroke-width':1.4})+rect(hx+14,hy-4,34,5,'#e2e8f0',{stroke:'#1f2937','stroke-width':1.2})+ell(hx-6,hy-1,9,5,'#7dd3fc',{stroke:'#1f2937','stroke-width':1})+lin(hx-30,hy-14,hx+30,hy-14,'#1f2937',2)+lin(hx,hy-9,hx,hy-14,'#1f2937',2)+lin(hx-14,hy+12,hx+14,hy+12,'#1f2937',2)+lin(hx-8,hy+9,hx-8,hy+12,'#1f2937',2)+lin(hx+8,hy+9,hx+8,hy+12,'#1f2937',2);
+  else art+=path('M'+(hx-26)+','+hy+' L'+(hx+26)+','+(hy-3)+' L'+(hx+26)+','+(hy+3)+'Z','#f8fafc',{stroke:'#1f2937','stroke-width':1.2})+path('M'+(hx-4)+','+hy+' L'+(hx-14)+','+(hy-12)+' L'+(hx+6)+','+(hy-1)+'Z','#e2e8f0',{stroke:'#1f2937','stroke-width':1.2});
+  // distant skyline: hazy layer, glass towers, needle tower
+  for(var d=0;d<16;d++){var bw=rr(r,28,46),bx=d*42+rr(r,-8,8),bh=rr(r,36,118);art+=rect(bx,DHOR-bh,bw,bh,'#9cc5da',{opacity:.8});if(r()<.35)art+=lin(bx+bw/2,DHOR-bh,bx+bw/2,DHOR-bh-rr(r,10,24),'#7aa6bd',2)}
+  var nt=r()<.5?rr(r,90,200):rr(r,440,540);
+  art+=poly([[nt-9,DHOR],[nt+9,DHOR],[nt+3,DHOR-120],[nt-3,DHOR-120]],'#6faac4',{stroke:'#1f2937','stroke-width':1.2,'stroke-opacity':.6})+circ(nt,DHOR-92,12,'#8cc7dd',{stroke:'#1f2937','stroke-width':1.2,'stroke-opacity':.6})+lin(nt,DHOR-120,nt,DHOR-150,'#475569',2);
+  for(var d2=0;d2<9;d2++){var bw2=rr(r,34,58),bx2=d2*74+rr(r,-12,12),bh2=rr(r,40,100),gc=pick(r,['#3fa7cf','#5aa0d0','#3a8fb7','#63b8d6','#4d94c9']);
+    art+=rect(bx2,DHOR-bh2,bw2,bh2,gc,{stroke:'#1f2937','stroke-width':1.2,'stroke-opacity':.55})+rect(bx2+bw2*.12,DHOR-bh2,bw2*.18,bh2,'#fff',{opacity:.22});
+    for(var wy=DHOR-bh2+8;wy<DHOR-4;wy+=9)art+=lin(bx2+2,wy,bx2+bw2-2,wy,'#e0f2fe',1.2,{opacity:.55});
+    if(r()<.4)art+=lin(bx2+bw2*.7,DHOR-bh2,bx2+bw2*.7,DHOR-bh2-rr(r,12,28),'#475569',2)}
   // road, sidewalks, curbs
   art+=dq([[-4,0,1.7],[4,0,1.7],[4,0,90],[-4,0,90]],'#4b5563');
   [-1,1].forEach(function(sd){
-    art+=dq([[sd*4.15,0,1.7],[sd*7.6,0,1.7],[sd*7.6,0,90],[sd*4.15,0,90]],'#cbd5e1');
-    for(var z=2;z<60;z*=1.3)art+=lin.apply(null,dP(sd*4.15,0,z).concat(dP(sd*7.6,0,z),['#94a3b8',1]));
+    art+=dq([[sd*4.15,0,1.7],[sd*5.9,0,1.7],[sd*5.9,0,90],[sd*4.15,0,90]],'#d6dde6')+dq([[sd*5.9,0,1.7],[sd*7.6,0,1.7],[sd*7.6,0,90],[sd*5.9,0,90]],'#4ade80');
+    for(var z=2;z<60;z*=1.3)art+=lin.apply(null,dP(sd*4.15,0,z).concat(dP(sd*5.9,0,z),['#94a3b8',1]));
     art+=dq([[sd*4,0,1.7],[sd*4.15,0,1.7],[sd*4.15,0,90],[sd*4,0,90]],'#94a3b8');
     art+=dq([[sd*4,0,1.7],[sd*4,.15,1.7],[sd*4,.15,90],[sd*4,0,90]],'#e5e7eb');
   });
@@ -908,10 +918,14 @@ function genDrive(i,test){
     var rb=dbox([[-4,0,rz],[4,0,rz],[4,.12,rz],[-4,.12,rz],[-4,.12,rz+1.6],[4,.12,rz+1.6]]);gt.push({c:'speedramp',x:rb.x,y:rb.y,w:rb.w,h:rb.h});cnt.ramp++}
   // buildings (far to near)
   var bl=[];
-  [-1,1].forEach(function(sd){var z=rr(r,2.5,5);var seg=[];while(z<75){var len=rr(r,8,15),h=rr(r,6,15),col=pick(r,['#e7c9a9','#c7d2e0','#d9c7e8','#f0d5d0','#cfe3c8','#d6d3c4','#b8c7d8']);seg.push({sd:sd,z0:z,z1:z+len,h:h,col:col});z+=len+rr(r,.5,3)}bl=bl.concat(seg)});
+  [-1,1].forEach(function(sd){var z=rr(r,2.5,5);var seg=[];while(z<75){var house=z<34&&r()<.45,len=house?rr(r,6,9):rr(r,8,15),h=house?rr(r,3.3,4.2):rr(r,6,15),glass=!house&&r()<.4,col=house?pick(r,['#fde7c7','#fbd5d5','#e7f0c7','#d9ecff','#fff1b8']):glass?pick(r,['#7dd3fc','#93c5fd','#a5f3fc','#67c1e8']):pick(r,['#e7c9a9','#c7d2e0','#d9c7e8','#f0d5d0','#cfe3c8','#d6d3c4','#b8c7d8']);seg.push({sd:sd,z0:z,z1:z+len,h:h,col:col,house:house,glass:glass});z+=len+rr(r,.5,3)}bl=bl.concat(seg)});
   bl.sort(function(a,b){return b.z0-a.z0});
   var bviews=[];
-  bl.forEach(function(b){var X0=b.sd*7.6,X1=b.sd*15,s0=b.sd;
+  bl.forEach(function(b){var X0=b.sd*7.6,X1=b.sd*(b.house?13:15),s0=b.sd;
+    if(b.house){var wc=b.col,Xm=(X0+X1)/2,rf=b.h+1.9,rc='#c2410c';
+      art+=dq([[X0,0,b.z0],[X1,0,b.z0],[X1,b.h,b.z0],[X0,b.h,b.z0]],wc,{stroke:'#1f2937','stroke-width':1.3})+dq([[X0,b.h,b.z0],[Xm,rf,b.z0],[X1,b.h,b.z0]],wc,{stroke:'#1f2937','stroke-width':1.3})+dq([[X0,0,b.z0],[X0,0,b.z1],[X0,b.h,b.z1],[X0,b.h,b.z0]],wc,{stroke:'#1f2937','stroke-width':1.3})+dq([[X0,0,b.z0],[X0,0,b.z1],[X0,b.h,b.z1],[X0,b.h,b.z0]],'#000',{opacity:.08})+dq([[X0,b.h,b.z0],[Xm,rf,b.z0],[Xm,rf,b.z1],[X0,b.h,b.z1]],rc,{stroke:'#1f2937','stroke-width':1.3});
+      art+=dq([[X0,.2,b.z0+1],[X0,.2,b.z0+2.2],[X0,2.4,b.z0+2.2],[X0,2.4,b.z0+1]],'#7c2d12')+dq([[X0,1,b.z0+3.2],[X0,1,b.z0+4.6],[X0,2.6,b.z0+4.6],[X0,2.6,b.z0+3.2]],'#bae6fd',{stroke:'#475569','stroke-width':.9})+dq([[X0,1,b.z0+5.5],[X0,1,b.z0+6.9],[X0,2.6,b.z0+6.9],[X0,2.6,b.z0+5.5]],'#bae6fd',{stroke:'#475569','stroke-width':.9});
+      var hb=dbox([[X0,0,b.z0],[X1,0,b.z0],[Xm,rf,b.z0],[X0,0,b.z1],[X0,rf,b.z1]]);bviews.push({z:b.z0,b:hb,b0:b});return}
     var side=[[X0,0,b.z0],[X0,0,b.z1],[X0,b.h,b.z1],[X0,b.h,b.z0]],front=[[X0,0,b.z0],[X1,0,b.z0],[X1,b.h,b.z0],[X0,b.h,b.z0]];
     art+=dq(front,b.col,{opacity:.95})+dq([[X0,b.h,b.z0],[X1,b.h,b.z0],[X1,b.h,b.z1],[X0,b.h,b.z1]],'#9ca3af')+dq(side,b.col,{stroke:'#1f2937','stroke-opacity':.55,'stroke-width':1.4});
     art+=dq([[X0,0,b.z0],[X0,0,b.z1],[X0,.0,b.z1],[X0,0,b.z0]],b.col);
@@ -928,9 +942,12 @@ function genDrive(i,test){
   bviews.filter(function(v){return v.b.w>40&&v.b.h>50}).sort(function(a,b){return a.z-b.z}).slice(0,4).forEach(function(v){gt.push({c:'building',x:v.b.x,y:v.b.y,w:v.b.w,h:v.b.h});cnt.building++});
   // cartoon trees, drawn far to near
   var trees=[];[-1,1].forEach(function(sd){for(var z=rr(r,7,10);z<62;z+=rr(r,6,10))trees.push({sd:sd,z:z})});trees.sort(function(a,b){return b.z-a.z});
-  trees.forEach(function(t){var q=dP(t.sd*6.5,0,t.z),k=DF/t.z,gcol=pick(r,['#22c55e','#16a34a','#4ade80','#65a30d']);
+  trees.forEach(function(t){var q=dP(t.sd*6.7,0,t.z),k=DF/t.z,gcol=pick(r,['#22c55e','#16a34a','#4ade80','#65a30d']);
     art+=rect(q[0]-.1*k,q[1]-2.2*k,.2*k,2.2*k,'#92400e',{stroke:'#1f2937','stroke-width':Math.max(.5,.03*k)});
     [[0,3.0,1.0],[-.7,2.5,.75],[.7,2.5,.75],[0,3.6,.7]].forEach(function(b){art+=circ(q[0]+b[0]*k,q[1]-b[1]*k,b[2]*k,gcol,{stroke:'#1f2937','stroke-width':Math.max(.5,.03*k)})})});
+  // bushes and street lamps (lamps are not traffic lights)
+  var dec=[];[-1,1].forEach(function(sd){for(var z=rr(r,5,8);z<55;z+=rr(r,4,7))dec.push({k:'b',sd:sd,z:z});for(var z2=rr(r,6,10);z2<55;z2+=rr(r,13,18))dec.push({k:'l',sd:sd,z:z2})});dec.sort(function(a,b){return b.z-a.z});
+  dec.forEach(function(t){var kk=DF/t.z;if(t.k==='b'){var q=dP(t.sd*7.1,0,t.z);[[-.5,.35,.6],[.4,.35,.55],[0,.6,.6]].forEach(function(b){art+=circ(q[0]+b[0]*kk,q[1]-b[1]*kk,b[2]*kk,'#16a34a',{stroke:'#1f2937','stroke-width':Math.max(.5,.025*kk)})})}else{var q2=dP(t.sd*4.5,0,t.z),w=Math.max(.8,.06*kk);art+=lin(q2[0],q2[1],q2[0],q2[1]-4.2*kk,'#475569',w)+lin(q2[0],q2[1]-4.2*kk,q2[0]-t.sd*.7*kk,q2[1]-4.3*kk,'#475569',w)+ell(q2[0]-t.sd*.75*kk,q2[1]-4.25*kk,.22*kk,.07*kk,'#fde047',{stroke:'#1f2937','stroke-width':Math.max(.4,.02*kk)})}});
   // decoys on facades
   var decoySide=pick(r,[-1,1]);
   if(i%3===1||test&&i===0){var zc=rr(r,6,9),sc2=DF/zc,pp=dP(decoySide*7.6,1.0,zc);var g0='<rect x="'+f1(pp[0]-.5*sc2)+'" y="'+f1(pp[1]-2.1*sc2)+'" width="'+f1(1.0*sc2)+'" height="'+f1(2.2*sc2)+'" fill="#fde68a" stroke="#92400e" stroke-width="2"/>';
@@ -974,7 +991,7 @@ PROJECTS.push({
     {id:'animal',name:'Animal (dog, cat)',color:'#a16207',help:'A dog or a cat on or near the road. A hazard the car must brake for.'},
     {id:'speedramp',name:'Speed ramp',color:'#eab308',help:'A raised yellow and black hump across the road that the car must slow down for.'}],
   guide:['Box each object tight, from edge to edge.','One box per object. Two cars get two boxes.','Box the housing of a traffic light and the plate of a traffic sign, not the pole.','Box a rider together with the bicycle, motorbike or scooter. Cars, buses, trucks, tractors and rickshaws are all Car / vehicle.','The crosswalk is the whole striped area. The speed ramp is the yellow and black hump.','A poster of a person, a shop sign and an empty wheelchair are not hazards of that class. Do not box them.','Box the near stretch of the curb on each side of the road.'],
-  traps:['A poster of a person on a wall.','An empty wheelchair is not a pedestrian.','A round shop sign looks like a traffic sign.','A distant car is small but still needs a box.','A speed ramp can look like a crosswalk.','A dog or a cat can run onto the road.'],
+  traps:['A poster of a person on a wall.','A street lamp is not a traffic light.','An empty wheelchair is not a pedestrian.','A round shop sign looks like a traffic sign.','A distant car is small but still needs a box.','A speed ramp can look like a crosswalk.','A dog or a cat can run onto the road.'],
   gigo:'If you skip a pedestrian or an animal, the car does not brake. If you box a poster, the car brakes for nothing. If you miss a speed ramp, the car hits it at full speed.',
   nTrain:10,nTest:2,gen:genDrive,
   tips:{pedestrian:'Never skip a person. Skip posters and empty wheelchairs.',trafficlight:'Box only the light housing.',crosswalk:'Box the whole striped area across the road.',trafficsign:'Box the sign plate. Skip shop signs.',building:'Box the whole building face you can see.',curb:'Box the raised edge on both sides.',car:'Buses and trucks count too.',bicycle:'Kick scooters count as bicycles.',motorbike:'Motor scooters count too.',animal:'Dogs and cats are small. Look near the kerb.',speedramp:'Box the yellow and black hump across the lane.'},
