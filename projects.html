@@ -456,7 +456,6 @@ function genPPE(i,test){
   var r=RNG(7100+i*53+(test?900:0)),art='',gt=[],workers=[];
   art+=T('defs',{},T('linearGradient',{id:'sky@U',x1:0,y1:0,x2:0,y2:1},'<stop offset="0" stop-color="#bfdbfe"/><stop offset="1" stop-color="#eff6ff"/>'));
   art+=rect(0,0,640,400,'url(#sky@U)');
-  // building and scaffold
   art+=rect(360,50,250,190,'#94a3b8')+rect(360,50,250,14,'#64748b');
   for(var yy=0;yy<4;yy++)for(var xx=0;xx<6;xx++)art+=rect(374+xx*38,76+yy*40,24,26,'#dbeafe',{opacity:.85});
   for(var sx=0;sx<5;sx++)art+=lin(40+sx*70,70,40+sx*70,240,'#f59e0b',3);
@@ -465,67 +464,86 @@ function genPPE(i,test){
   art+=poly([[560,0],[575,0],[575,26],[640,26],[640,34],[575,34],[575,60],[560,60]],'#facc15',{opacity:.9});
   art+=rect(0,238,640,162,'#9ca3af')+rect(0,238,640,6,'#6b7280');
   for(var k=0;k<8;k++)art+=rect(k*90+10,392,50,4,'#facc15',{opacity:.7});
-  // workers
-  var n=2+Math.floor(r()*2)+(i%3===1?1:0);if(n>4)n=4;
+  // decoy: a vest hanging on the scaffold
+  if(i%3===0){var vx0=70+Math.floor(r()*170);art+=lin(vx0+18,96,vx0+18,104,'#475569',2)+rect(vx0,104,36,48,'#f97316',{rx:4})+rect(vx0,118,36,5,'#fef08a')+rect(vx0,134,36,5,'#fef08a');
+    gt.push({c:'vest',decoy:true,why:'A vest hanging on a rail is not being worn',x:vx0,y:104,w:36,h:48})}
+  var n=2+(i%3===1||test?1:0);
   var slots=shuffle(r,[85,225,365,505]).slice(0,n);
   var occl=(i%3===2)?Math.floor(r()*n):-1;
   slots.forEach(function(sl,k){
-    var s=rr(r,.85,1.08),cx=sl+rr(r,-18,18),foot=rr(r,336,384);
-    var helmet=r()<.58,vest=r()<.55,cap=!helmet&&r()<.4;
-    if(i<2&&k===0){helmet=true;vest=true}      // an easy first example
+    var s=rr(r,.85,1.0),cx=sl+rr(r,-14,14),foot=rr(r,340,384);
+    var u=r(),helm=u<.34?'plain':u<.56?'ear':'none',u2=r(),chest=u2<.4?'vest':u2<.6?'harness':'none',boots=r()<.5,gloves=r()<.5,goggles=r()<.45,cap=helm==='none'&&r()<.4;
+    if(!test&&k===0){var F=[['plain','vest',true,true,true],['ear','harness',true,true,false],['none','none',false,false,false],['ear','vest',true,false,true],['plain','harness',false,true,false],['none','vest',true,true,false]][i%6];helm=F[0];chest=F[1];boots=F[2];gloves=F[3];goggles=F[4];cap=helm==='none'&&i%2===0}
     var shirt=pick(r,['#2563eb','#0f766e','#e5e7eb','#475569','#7c3aed']),pants=pick(r,['#1f2937','#334155']),skin=pick(r,['#8d5524','#c68642','#e0ac69','#5b3a1f','#3b2a1a']);
     var legH=68*s,legW=17*s,torsoW=50*s,torsoH=78*s,R=17*s,armW=13*s,armH=66*s;
-    var legTop=foot-legH,torsoTop=legTop-torsoH,hc=torsoTop-R-4*s;
-    var g='';
+    var legTop=foot-legH,torsoTop=legTop-torsoH,hc=torsoTop-R-4*s,g='',tbox={x:cx-torsoW/2,y:torsoTop,w:torsoW,h:torsoH-2*s};
     g+=rect(cx-legW-1*s,legTop,legW,legH,pants)+rect(cx+1*s,legTop,legW,legH,pants);
-    g+=rect(cx-legW-3*s,foot-5*s,legW+4*s,6*s,'#111827',{rx:2})+rect(cx+1*s,foot-5*s,legW+4*s,6*s,'#111827',{rx:2});
+    var fb;
+    if(boots){var bh=17*s;g+=rect(cx-legW-4*s,foot-bh,legW+6*s,bh+1*s,'#b45309',{rx:3})+rect(cx+0*s,foot-bh,legW+6*s,bh+1*s,'#b45309',{rx:3})+rect(cx-legW-4*s,foot-3*s,legW+6*s,4*s,'#111827')+rect(cx+0*s,foot-3*s,legW+6*s,4*s,'#111827')+rect(cx-legW-4*s,foot-bh,legW+6*s,3*s,'#facc15')+rect(cx,foot-bh,legW+6*s,3*s,'#facc15');fb={x:cx-legW-5*s,y:foot-bh-1,w:2*legW+11*s,h:bh+3*s}}
+    else{g+=ell(cx-legW/2-3*s,foot-3*s,legW/2+6*s,4.5*s,'#f1f5f9',{stroke:'#94a3b8','stroke-width':1})+ell(cx+legW/2+3*s,foot-3*s,legW/2+6*s,4.5*s,'#f1f5f9',{stroke:'#94a3b8','stroke-width':1})+lin(cx-legW-2*s,foot-3*s,cx-3*s,foot-3*s,'#2563eb',2)+lin(cx+3*s,foot-3*s,cx+legW+2*s,foot-3*s,'#2563eb',2);fb={x:cx-legW-6*s,y:foot-9*s,w:2*legW+13*s,h:11*s}}
     g+=rect(cx-torsoW/2-armW,torsoTop+4*s,armW,armH,shirt,{rx:5*s})+rect(cx+torsoW/2,torsoTop+4*s,armW,armH,shirt,{rx:5*s});
-    g+=circ(cx-torsoW/2-armW/2,torsoTop+armH+8*s,6*s,skin)+circ(cx+torsoW/2+armW/2,torsoTop+armH+8*s,6*s,skin);
+    var hy=torsoTop+armH+8*s,hxs=[cx-torsoW/2-armW/2,cx+torsoW/2+armW/2],hb=[];
+    hxs.forEach(function(hx){if(gloves){g+=rect(hx-8*s,hy-8*s,16*s,17*s,'#facc15',{rx:6*s,stroke:'#0f172a','stroke-width':1.2})+rect(hx-8*s,hy-8*s,16*s,4*s,'#111827');hb.push({x:hx-9*s,y:hy-9*s,w:18*s,h:19*s})}
+      else{g+=circ(hx,hy,6.5*s,skin);hb.push({x:hx-8*s,y:hy-8*s,w:16*s,h:16*s})}});
     g+=rect(cx-torsoW/2,torsoTop,torsoW,torsoH,shirt,{rx:6*s});
-    var vestBox=null;
-    if(vest){var vx=cx-torsoW/2+3*s,vw=torsoW-6*s;g+=rect(vx,torsoTop+2*s,vw,torsoH-6*s,'#f97316',{rx:4*s})+rect(vx,torsoTop+torsoH*.32,vw,6*s,'#fef08a')+rect(vx,torsoTop+torsoH*.62,vw,6*s,'#fef08a');vestBox={x:cx-torsoW/2,y:torsoTop,w:torsoW,h:torsoH-2*s}}
+    if(chest==='vest'){var vx=cx-torsoW/2+3*s,vw=torsoW-6*s;g+=rect(vx,torsoTop+2*s,vw,torsoH-6*s,'#f97316',{rx:4*s})+rect(vx,torsoTop+torsoH*.32,vw,6*s,'#fef08a')+rect(vx,torsoTop+torsoH*.62,vw,6*s,'#fef08a')}
+    else if(chest==='harness'){var X0=cx-torsoW/2,X1=cx+torsoW/2;g+=lin(X0+8*s,torsoTop+1*s,cx+4*s,torsoTop+torsoH*.55,'#b91c1c',5*s)+lin(X1-8*s,torsoTop+1*s,cx-4*s,torsoTop+torsoH*.55,'#b91c1c',5*s)+lin(cx,torsoTop+torsoH*.5,cx,torsoTop+torsoH-2*s,'#b91c1c',4*s)+rect(X0+1*s,torsoTop+torsoH*.7,torsoW-2*s,5*s,'#b91c1c')+circ(cx,torsoTop+torsoH*.3,5*s,'#e5e7eb',{stroke:'#111827','stroke-width':1.6})+rect(cx-3*s,torsoTop+torsoH*.5,6*s,6*s,'#111827')}
     g+=rect(cx-5*s,torsoTop-6*s,10*s,10*s,skin);
     g+=circ(cx,hc,R,skin);
-    var helmetBox=null,top=hc-R;
-    if(helmet){var hr=R+4*s,col=pick(r,['#facc15','#f8fafc','#fb923c','#38bdf8']);g+=path('M'+f1(cx-hr)+','+f1(hc-1*s)+' A'+f1(hr)+','+f1(hr)+' 0 0 1 '+f1(cx+hr)+','+f1(hc-1*s)+' Z',col,{stroke:'#0f172a','stroke-width':1.2})+rect(cx-hr-3*s,hc-3*s,2*hr+6*s,5*s,col,{rx:2*s,stroke:'#0f172a','stroke-width':1.2});
-      helmetBox={x:cx-hr-3*s,y:hc-1*s-hr,w:2*hr+6*s,h:hr+4*s};top=helmetBox.y}
-    else if(cap){var cc='#dc2626';g+=path('M'+f1(cx-R)+','+f1(hc-3*s)+' A'+f1(R)+','+f1(R*.8)+' 0 0 1 '+f1(cx+R)+','+f1(hc-3*s)+' Z',cc)+rect(cx+2*s,hc-5*s,R+8*s,4*s,cc,{rx:2});
-      gt.push({c:'helmet',decoy:true,why:'This is a cap, not a safety helmet',x:cx-R,y:hc-3*s-R*.8,w:2*R+8*s,h:R*.8+3*s});top=hc-3*s-R*.8}
+    var headBox={x:cx-R-1*s,y:hc-R-3*s,w:2*R+2*s,h:2*R+5*s},top=hc-R,hcls='nohelmet';
+    if(helm!=='none'){var hr=R+4*s,col=pick(r,['#facc15','#f8fafc','#fb923c','#38bdf8']);
+      if(helm==='ear')g+=path('M'+f1(cx-R-3*s)+','+f1(hc-4*s)+' A'+f1(R+3*s)+','+f1(R+3*s)+' 0 0 1 '+f1(cx+R+3*s)+','+f1(hc-4*s),'none',{stroke:'#475569','stroke-width':3*s})+rect(cx-R-9*s,hc-5*s,9*s,17*s,'#2563eb',{rx:4*s,stroke:'#0f172a','stroke-width':1})+rect(cx+R,hc-5*s,9*s,17*s,'#2563eb',{rx:4*s,stroke:'#0f172a','stroke-width':1});
+      g+=path('M'+f1(cx-hr)+','+f1(hc-1*s)+' A'+f1(hr)+','+f1(hr)+' 0 0 1 '+f1(cx+hr)+','+f1(hc-1*s)+' Z',col,{stroke:'#0f172a','stroke-width':1.2})+rect(cx-hr-3*s,hc-3*s,2*hr+6*s,5*s,col,{rx:2,stroke:'#0f172a','stroke-width':1});
+      headBox=helm==='ear'?{x:cx-R-10*s,y:hc-1*s-hr,w:2*R+20*s,h:hr+16*s}:{x:cx-hr-3*s,y:hc-1*s-hr,w:2*hr+6*s,h:hr+4*s};top=headBox.y;hcls=helm==='ear'?'helmet_ear':'helmet'}
+    else if(cap){var cc='#dc2626';g+=path('M'+f1(cx-R)+','+f1(hc-3*s)+' A'+f1(R)+','+f1(R*.8)+' 0 0 1 '+f1(cx+R)+','+f1(hc-3*s)+' Z',cc)+rect(cx+2*s,hc-5*s,R+8*s,4*s,cc,{rx:2});headBox={x:cx-R,y:hc-3*s-R*.8,w:2*R+8*s,h:R*.8+R+4*s};top=headBox.y}
     else{g+=path('M'+f1(cx-R)+','+f1(hc-2*s)+' A'+f1(R)+','+f1(R)+' 0 0 1 '+f1(cx+R)+','+f1(hc-2*s)+' Z','#1c1917')}
     g+=circ(cx-6*s,hc+2*s,1.8*s,'#111827')+circ(cx+6*s,hc+2*s,1.8*s,'#111827');
-    var bx=cx-torsoW/2-armW-2*s,bw=torsoW+2*armW+4*s,by=top-2,bh=foot-by+2;
-    if(k===occl){
-      var bt=foot-30*s;g+=rect(cx-70*s,bt,140*s,60*s,'#cbd5e1')+rect(cx-70*s,bt,140*s,7*s,'#ef4444')+rect(cx-70*s,bt+7*s,140*s,6*s,'#f8fafc');bh=bt-by+4;
-    }
+    var gogBox=null;if(goggles){g+=rect(cx-R+1*s,hc-3*s,2*R-2*s,10*s,'#bae6fd',{opacity:.7,rx:4*s,stroke:'#0f172a','stroke-width':1.8})+lin(cx-R,hc+1*s,cx-R-3*s,hc+1*s,'#0f172a',2)+lin(cx+R,hc+1*s,cx+R+3*s,hc+1*s,'#0f172a',2);gogBox={x:cx-R,y:hc-4*s,w:2*R,h:12*s}}
+    var bx=cx-torsoW/2-armW-2*s,bw=torsoW+2*armW+4*s,by=top-2,bh=foot-by+3,hidden=(k===occl);
+    if(hidden){var bt=foot-30*s;g+=rect(cx-70*s,bt,140*s,60*s,'#cbd5e1')+rect(cx-70*s,bt,140*s,7*s,'#ef4444')+rect(cx-70*s,bt+7*s,140*s,6*s,'#f8fafc');bh=bt-by+4}
     art+=g;
-    workers.push({id:k,helmet:helmet,vest:vest,box:{x:bx,y:by,w:bw,h:bh}});
+    workers.push({id:k,helm:helm,chest:chest,boots:boots,gloves:gloves,hidden:hidden,box:{x:bx,y:by,w:bw,h:bh}});
     gt.push({c:'person',x:bx,y:by,w:bw,h:bh,wid:k});
-    if(helmetBox)gt.push(X({c:'helmet',wid:k},helmetBox));
-    if(vestBox)gt.push(X({c:'vest',wid:k},vestBox));
+    gt.push(X({c:hcls,wid:k},headBox));
+    gt.push(X({c:chest==='vest'?'vest':chest==='harness'?'harness':'novest',wid:k},tbox));
+    if(!hidden)gt.push(X({c:boots?'boots':'noboots',wid:k},fb));
+    hb.forEach(function(b){gt.push(X({c:gloves?'gloves':'nogloves',wid:k},b))});
+    if(gogBox)gt.push(X({c:'goggles',wid:k},gogBox));
   });
-  // helmet resting on a crate (not worn)
+  // decoys on a crate: a helmet and gloves that nobody is wearing
   if(i%2===1||test){
     var free=[40,150,270,400,520].filter(function(x){return slots.every(function(s){return Math.abs(s-x)>85})});
     if(free.length){var fx=free[0]+rr(r,0,15);art+=rect(fx,350,60,38,'#92400e')+rect(fx,350,60,5,'#b45309');
-      art+=path('M'+f1(fx+8)+','+f1(350)+' A22,22 0 0 1 '+f1(fx+52)+',350 Z','#facc15',{stroke:'#0f172a','stroke-width':1.2});
-      gt.push({c:'helmet',decoy:true,why:'A helmet on a crate is not being worn',x:fx+6,y:328,w:48,h:24})}
+      art+=path('M'+f1(fx+4)+','+f1(350)+' A18,18 0 0 1 '+f1(fx+40)+',350 Z','#facc15',{stroke:'#0f172a','stroke-width':1.2});
+      gt.push({c:'helmet',decoy:true,why:'A helmet on a crate is not being worn',x:fx+2,y:331,w:40,h:20});
+      art+=rect(fx+42,340,14,10,'#facc15',{rx:4,stroke:'#0f172a','stroke-width':1});
+      gt.push({c:'gloves',decoy:true,why:'Gloves lying on a crate are not being worn',x:fx+41,y:339,w:16,h:12})}
   }
   return {art:art,gt:gt,workers:workers};
 }
 PROJECTS.push({
   id:'ppe',name:'Safety equipment detection',icon:'🦺',type:'box',tag:'Bounding box',
-  blurb:'Teach a CCTV system to spot workers who are missing a helmet or vest.',
-  client:'A construction company wants its cameras to raise an alert when a worker is on site without a hard hat or reflective vest. The model learns from boxes you draw.',
+  blurb:'Teach a CCTV system to check helmets, vests, harnesses, boots, gloves and goggles on every worker.',
+  client:'A construction company wants its cameras to raise an alert when a worker is on site missing protective equipment. The model learns from the boxes you draw, including boxes for what is missing: a bare head, a chest without a vest, shoes instead of boots and bare hands.',
   source:'https://datamaker.io/ko/blog/articles/review/safety-equipment',
   classes:[
-    {id:'person',name:'Person',color:'#2563eb',help:'The whole visible worker, from the top of the helmet or head to the feet.'},
-    {id:'helmet',name:'Helmet',color:'#d97706',help:'Only a hard hat that is worn on a head. Not a cap, not one lying on a crate.'},
-    {id:'vest',name:'Vest',color:'#16a34a',help:'The reflective vest on the chest and torso.'}],
-  guide:['Draw each box tight: the edges touch the object.','Box one person per box, even when workers stand close together.','Label a helmet only if it is on a head. A cap or a helmet on a crate is not a helmet.','If a worker is partly hidden, box only what you can see.','Every helmet and vest belongs to the person wearing it, so box the person too.'],
-  traps:['Red caps look like helmets.','A helmet on a crate is not worn.','A barrier hides a worker’s legs.'],
-  gigo:'If you box caps as helmets, the camera will treat a worker in a cap as protected and the alert never fires.',
+    {id:'person',name:'Person',color:'#2563eb',help:'The whole visible worker, from the top of the head to the feet.'},
+    {id:'helmet',name:'Safety helmet',color:'#d97706',help:'A hard hat worn on the head. No ear protectors.'},
+    {id:'helmet_ear',name:'Helmet with ear protector',color:'#b45309',help:'A hard hat with ear muffs on both sides. Box the helmet and the muffs together.'},
+    {id:'nohelmet',name:'Head = no helmet',color:'#ef4444',help:'A bare head, or a head with only a cap. The violation class.'},
+    {id:'vest',name:'Safety vest',color:'#16a34a',help:'The orange reflective vest on the chest.'},
+    {id:'harness',name:'Harness',color:'#7c3aed',help:'Red straps over the chest for work at height.'},
+    {id:'novest',name:'Chest = no vest',color:'#f43f5e',help:'A chest with no vest and no harness. Box the torso.'},
+    {id:'boots',name:'Safety boots',color:'#0d9488',help:'Tall work boots with a steel toe. Box both feet together.'},
+    {id:'noboots',name:'Shoe = no boots',color:'#e11d48',help:'Low shoes or trainers instead of boots. Box both feet together.'},
+    {id:'gloves',name:'Gloves',color:'#ca8a04',help:'A yellow work glove worn on a hand. One box per hand.'},
+    {id:'nogloves',name:'Hand = no gloves',color:'#be123c',help:'A bare hand. One box per hand.'},
+    {id:'goggles',name:'Goggles',color:'#0891b2',help:'Safety goggles over the eyes. Not every worker wears them, so only box them when you see them.'}],
+  guide:['Draw each box tight: the edges touch the object.','Box every person first, then the head, chest, feet and each hand of that person.','Always label the state: a bare head is Head = no helmet, a chest without a vest is Chest = no vest, shoes are Shoe = no boots, a bare hand is Hand = no gloves.','A cap is not a helmet. A helmet, vest or gloves lying on a crate or hanging on a rail are not worn, so do not box them.','Box the feet and hands only when you can see them. A barrier can hide the feet.'],
+  traps:['A red cap looks like a helmet.','A helmet and gloves lie on a crate.','A vest hangs on the scaffold.','A barrier hides a worker’s feet.','Ear muffs belong to the helmet box.'],
+  gigo:'If you box a cap as a helmet, or skip the bare hands, the camera treats an unprotected worker as safe and the alert never fires.',
   nTrain:6,nTest:2,gen:genPPE,
-  tips:{person:'Box every worker, tight from head to feet. A missed person means a missed alert.',helmet:'Helmet means worn on a head. Skip caps and helmets lying on crates.',vest:'Box the vest on the chest, not the whole body.'},
+  tips:{person:'Box every worker, tight from head to feet. A missed person means a missed alert.',helmet:'Helmet means worn on a head. Skip helmets lying on crates.',helmet_ear:'Include the ear muffs inside the box.',nohelmet:'Box the bare head or the cap. Do not call a cap a helmet.',vest:'Box the vest on the chest, not the whole body. Skip vests on rails.',harness:'Box the torso with the red straps.',novest:'Box the torso when there is no vest and no harness.',boots:'Box both boots together. Tall boots with a steel toe.',noboots:'Low shoes mean Shoe = no boots. Box both feet together.',gloves:'One box per gloved hand. Skip gloves on crates.',nogloves:'A bare hand needs its own box. These are easy to skip.',goggles:'Box goggles only when the worker wears them.'},
   reportTitle:'Safety alerts the camera would raise'
 });
 // ===== 2. Grazing monitoring (boxes) =====
@@ -744,12 +762,14 @@ function genSkin(i,test){
   var tone=pick(r,['#f1c9a5','#d9a074','#b97a4b','#8d5524','#e8b98f']),dark=tone==='#8d5524'||tone==='#b97a4b';
   var hairCol=pick(r,['#1c1210','#3b2417','#5a3a22','#111827']),bg=pick(r,['#dbeafe','#fde68a','#d1fae5','#e9d5ff','#fecaca']);
   var cx=320+rr(r,-12,12),cy=210+rr(r,-6,6),frx=100+rr(r,-6,8),fry=134+rr(r,-6,8);
-  var les=[],nl=2+Math.floor(r()*3);
-  var zones=[[-70,26,14,22],[70,26,14,22],[-34,-72,12,6],[36,-72,12,6],[0,98,14,6],[-50,70,12,10],[52,66,12,10]];
-  var zs=shuffle(r,zones);
-  for(var k=0;k<nl;k++){var z=zs[k];les.push({x:cx+z[0]+rr(r,-z[2],z[2]),y:cy+z[1]+rr(r,-z[3],z[3]),rx:rr(r,16,30),ry:rr(r,10,22),a:rr(r,-.6,.6)})}
+  var les=[],PLAN=[[5],[6],[7],[8],[9],[6,8],[6,7],[8,5]],plan=PLAN[(test?6:0)+i%6];
+  var zones=[[-60,16,8,10],[60,16,8,10],[-64,46,3,4],[64,46,3,4],[0,-6,6,6],[-30,100,6,4]];
+  var zs=shuffle(r,zones),zi=0;
+  plan.forEach(function(d){var n=d===7?1:(d===9?1+(r()<.4?1:0):1+(r()<.5?1:0));
+    for(var k=0;k<n&&zi<zs.length;k++){var z=zs[zi++];var big=d===7?rr(r,30,38):d===9?rr(r,15,20):rr(r,26,36);
+      les.push({d:d,x:cx+z[0]+rr(r,-z[2],z[2]),y:cy+z[1]+rr(r,-z[3],z[3]),rx:big,ry:d===7?big*.8:d===9?big*.85:rr(r,18,26),a:rr(r,-.6,.6)})}});
   les=les.filter(function(l){return Math.pow((l.x-cx)/frx,2)+Math.pow((l.y-cy)/fry,2)<.8});
-  if(!les.length)les.push({x:cx-64,y:cy+30,rx:24,ry:16,a:.2});
+  if(!les.length)les.push({d:plan[0],x:cx-64,y:cy+30,rx:24,ry:16,a:.2});
   function inE(x,y,e){var c=Math.cos(e.a||0),s=Math.sin(e.a||0),dx=x-e.x,dy=y-e.y,u=dx*c+dy*s,v=-dx*s+dy*c;return (u*u)/(e.rx*e.rx)+(v*v)/(e.ry*e.ry)<=1}
   var eyes=[-1,1].map(function(s){return{x:cx+s*40,y:cy-28,rx:18,ry:10,a:0}}),brows=[-1,1].map(function(s){return{x:cx+s*42,y:cy-56,rx:27,ry:6,a:s*-.12}}),mouth={x:cx,y:cy+66,rx:32,ry:10,a:0};
   var face={x:cx,y:cy,rx:frx,ry:fry,a:0},ears=[-1,1].map(function(s){return{x:cx+s*frx,y:cy+8,rx:15,ry:30,a:0}}),hairBack={x:cx,y:cy-26,rx:frx+26,ry:fry+30,a:0};
@@ -757,10 +777,11 @@ function genSkin(i,test){
   function classAt(x,y){
     if(eyes.some(function(e){return inE(x,y,e)})||brows.some(function(e){return inE(x,y,e)})||inE(x,y,mouth))return 0;
     var inFace=inE(x,y,face);
-    if(inFace&&les.some(function(l){return inE(x,y,l)}))return 3;
+    var ls=null;if(inFace)for(var li2=0;li2<les.length;li2++)if(inE(x,y,les[li2])){ls=les[li2];break}
+    if(ls)return ls.d;
     if(inFace&&y<hairline(x))return 1;
-    if(inFace)return 4;
-    if(ears.some(function(e){return inE(x,y,e)})||(Math.abs(x-cx)<46&&y>cy+fry*.72&&y<cy+fry+60))return 5;
+    if(inFace)return 3;
+    if(ears.some(function(e){return inE(x,y,e)})||(Math.abs(x-cx)<46&&y>cy+fry*.72&&y<cy+fry+60))return 4;
     if(inE(x,y,hairBack))return 1;
     return 2;
   }
@@ -774,9 +795,21 @@ function genSkin(i,test){
   art+=ell(cx,cy,frx,fry,tone,{stroke:'#000','stroke-opacity':.15,'stroke-width':1.5});
   if(r()<.7)art+=ell(cx+(r()<.5?-1:1)*rr(r,60,80),cy+rr(r,10,70),30,22,'#000',{opacity:.1,'clip-path':'url(#fc@U)'});
   for(var fk=0;fk<26;fk++)art+=circ(cx+rr(r,-80,80),cy+rr(r,-10,60),rr(r,1,1.8),dark?'#3f2a1a':'#a05a2c',{opacity:.55});
-  les.forEach(function(l){var rot='rotate('+f1(l.a*180/Math.PI)+' '+f1(l.x)+' '+f1(l.y)+')';
-    art+=ell(l.x,l.y,l.rx,l.ry,dark?'#7f1d1d':'#be3a3a',{opacity:.62,transform:rot,stroke:dark?'#450a0a':'#7f1d1d','stroke-width':1.6,'stroke-opacity':.6});
-    for(var q=0;q<7;q++){var aa=r()*6.28,dd=Math.sqrt(r())*.8;art+=circ(l.x+Math.cos(aa)*l.rx*dd*Math.cos(l.a)-Math.sin(aa)*l.ry*dd*Math.sin(l.a),l.y+Math.cos(aa)*l.rx*dd*Math.sin(l.a)+Math.sin(aa)*l.ry*dd*Math.cos(l.a),1.5,'#fecaca',{opacity:.5})}});
+  les.forEach(function(l){var rot='rotate('+f1(l.a*180/Math.PI)+' '+f1(l.x)+' '+f1(l.y)+')',d=l.d;
+    function inside(){var aa=r()*6.28,dd=Math.sqrt(r())*.85,ca=Math.cos(l.a),sa=Math.sin(l.a),u=Math.cos(aa)*l.rx*dd,v=Math.sin(aa)*l.ry*dd;return[l.x+u*ca-v*sa,l.y+u*sa+v*ca]}
+    if(d===5){art+=ell(l.x,l.y,l.rx,l.ry,'#e0525a',{opacity:.5,transform:rot,stroke:'#b91c1c','stroke-width':1.2,'stroke-opacity':.4});
+      for(var q=0;q<14;q++){var p=inside(),p2=inside();art+=lin(p[0],p[1],p[0]+rr(r,-6,6),p[1]+rr(r,-5,5),'#9f1239',1,{opacity:.55})}
+      for(var q2=0;q2<10;q2++){var p3=inside();art+=circ(p3[0],p3[1],rr(r,.8,1.6),'#fff1f2',{opacity:.8})}}
+    else if(d===6){art+=ell(l.x,l.y,l.rx,l.ry,'#c2410c',{opacity:.62,transform:rot,stroke:'#7c2d12','stroke-width':1.8,'stroke-opacity':.8});
+      for(var q3=0;q3<26;q3++){var p4=inside();art+=ell(p4[0],p4[1],rr(r,2,4.2),rr(r,1,2),'#f1f5f9',{opacity:.9,transform:'rotate('+f1(r()*180)+' '+f1(p4[0])+' '+f1(p4[1])+')'})}}
+    else if(d===7){art+=ell(l.x,l.y,l.rx,l.ry,'#e11d48',{opacity:.16,transform:rot});
+      for(var q4=0;q4<11;q4++){var p5=inside(),rad=rr(r,2.2,4);art+=circ(p5[0],p5[1],rad,'#b91c1c',{opacity:.75,stroke:'#7f1d1d','stroke-width':.8});if(r()<.5)art+=circ(p5[0]-.4,p5[1]-.4,rad*.35,'#fef2f2')}}
+    else if(d===8){art+=ell(l.x,l.y,l.rx,l.ry,'#fffaf3',{opacity:.92,transform:rot,stroke:'#fffaf3','stroke-width':2.5,'stroke-opacity':.5});
+      art+=ell(l.x+3,l.y-2,l.rx*.4,l.ry*.35,tone,{opacity:.35,transform:rot})}
+    else{art+=ell(l.x,l.y,l.rx*1.25,l.ry*1.2,'#7c2d12',{opacity:.22,transform:rot});
+      art+=T('polygon',{points:pts2s(blob(l.x,l.y,l.rx,r,11,.22)),fill:'#2b1608',opacity:.95,stroke:'#0f0a05','stroke-width':1});
+      for(var q5=0;q5<6;q5++){var p6=inside();art+=circ(p6[0]*.5+l.x*.5,p6[1]*.5+l.y*.5,rr(r,1.5,3),pick(r,['#7c2d12','#9a3412','#1c1917']),{opacity:.85})}}
+  });
   var hl=[];for(var x=cx-frx;x<=cx+frx;x+=8)hl.push([x,hairline(x)]);
   art+=T('g',{'clip-path':'url(#fc@U)'},poly([[cx-frx-4,cy-fry-10]].concat(hl).concat([[cx+frx+4,cy-fry-10]]),hairCol));
   eyes.forEach(function(e){art+=ell(e.x,e.y,e.rx,e.ry,'#fff',{stroke:'#1f2937','stroke-width':1.2})+circ(e.x,e.y,6,'#3b2417')+circ(e.x,e.y,2.6,'#000')});
@@ -788,20 +821,25 @@ var SK_CLASSES=[
   {id:0,name:'Eyes, brows, mouth',color:'#2563eb',help:'Eyes, eyebrows and the mouth.'},
   {id:1,name:'Hair',color:'#7c2d12',help:'Hair, including the fringe on the forehead.'},
   {id:2,name:'Background',color:'#64748b',help:'Everything that is not the person: wall, clothes, shelf.'},
-  {id:3,name:'Lesion',color:'#dc2626',help:'Red irritated patches on the skin.'},
-  {id:4,name:'Normal skin',color:'#f59e0b',help:'Healthy skin on the face, including freckles and shadows.'},
-  {id:5,name:'Other skin',color:'#16a34a',help:'Ears and neck.'}];
+  {id:3,name:'Normal skin',color:'#f59e0b',help:'Healthy skin on the face, including freckles and shadows.'},
+  {id:4,name:'Other skin',color:'#16a34a',help:'Ears and neck.'},
+  {id:5,name:'Eczema',color:'#ec4899',help:'Red, dry, rough and flaky patch with an uneven edge, often with scratch marks.'},
+  {id:6,name:'Psoriasis',color:'#dc2626',help:'Thick, sharply edged red plaque covered with silvery-white scales.'},
+  {id:7,name:'Acne',color:'#a21caf',help:'A cluster of many small red bumps and pimples. Paint the whole cluster area.'},
+  {id:8,name:'Vitiligo',color:'#06b6d4',help:'Smooth patch that is paler than the skin around it, with no redness.'},
+  {id:9,name:'Dark irregular mole',color:'#111827',help:'Small, very dark spot with an uneven edge. A warning sign that needs a specialist.'}];
+var SK_DIS=[5,6,7,8,9];
 PROJECTS.push({
   id:'skin',name:'Skin lesion mapping',icon:'🩺',type:'seg',tag:'Semantic segmentation',
-  blurb:'Paint every pixel of a face photo so an app can find the irritated area. Simulation only.',
-  client:'A health-app team needs every pixel of a face photo given a class so the model can measure how much skin is affected. This is a training exercise, not medical advice.',
+  blurb:'Paint every cell of a face photo, naming each skin disease patch: eczema, psoriasis, acne, vitiligo and a dark mole. Simulation only.',
+  client:'A dermatology-support app needs every pixel of a face photo given a class so the model can say which skin condition is present and how much skin it covers. This is a training exercise, not medical advice.',
   source:'https://datamaker.io/ko/blog/articles/review/skin-lesion-region-semantic-segmentation',
   classes:SK_CLASSES.map(function(c){return{id:String(c.id),name:c.name,color:c.color,help:c.help}}),
-  guide:['Every cell gets a class. There must be no empty cells.','Start with the big areas, then work on the lesion edges.','Freckles, moles and shadows are normal skin, not lesions.','Ears and neck are Other skin.','The fringe on the forehead is Hair, not skin.'],
-  traps:['Shadows on a cheek look like a patch.','Freckles are small dark dots.','Hair falls over the forehead.'],
-  gigo:'If lesion edges are painted loosely, the app over- or under-reports the affected area. If cells are left empty, the model learns nothing there.',
+  guide:['Every cell gets a class. There must be no empty cells.','Start with the big areas (background, hair, skin), then work on the patch edges.','Name each patch by how it looks: eczema is red and flaky, psoriasis is thick with silvery scales, acne is a cluster of small bumps, vitiligo is pale, the dark mole is small and almost black.','Freckles, shadows and ordinary moles are Normal skin, not disease.','Ears and neck are Other skin. The fringe on the forehead is Hair.','Use the Pre-label helper for the big areas, then fix the patches yourself.'],
+  traps:['A shadow on a cheek looks like a patch.','Freckles are small dark dots, not a mole.','Eczema and psoriasis are both red: look for silvery scales.','Vitiligo is pale, so it can look like a bright reflection.'],
+  gigo:'If a psoriasis plaque is painted as eczema, the app suggests the wrong care. If a dark mole is painted as normal skin, a warning sign is never reported.',
   nTrain:6,nTest:2,gen:genSkin,
-  tips:{'0':'Eyes, brows and mouth are small. Zoom the brush to size 1.','1':'Paint the fringe on the forehead as hair.','2':'Background includes clothes, walls and shelves.','3':'Follow the red patch edge closely. Skip freckles and shadows.','4':'Healthy face skin, including freckles and shadows.','5':'Paint both ears and the neck.'},
+  tips:{'0':'Eyes, brows and mouth are small. Use brush size 1.','1':'Paint the fringe on the forehead as hair.','2':'Background includes clothes, walls and shelves.','3':'Healthy skin includes freckles and shadows. Do not paint them as disease.','4':'Ears and neck are Other skin.','5':'Eczema is red, dry and flaky with no thick silvery scale.','6':'Psoriasis has a sharp edge and silvery-white scales. Do not call it eczema.','7':'Paint the whole cluster of bumps as Acne, not each pimple alone.','8':'Vitiligo is paler than the skin around it. Do not confuse it with a reflection.','9':'The dark mole is small. Trace it tightly and never paint it as normal skin.'},
   reportTitle:'What the app would report'
 });
 
@@ -1003,7 +1041,7 @@ function evalSeg(sc,ann,P){
     if(ac===gc){by[gc].i++;by[gc].u++}else{by[gc].u++;if(ac>=0)by[ac].u++;if(ac>=0){conf[gc]=conf[gc]||{};conf[gc][ac]=(conf[gc][ac]||0)+1}}}
   var sc2=[];ids.forEach(function(id){var b=by[id];if(!b.n)return;b.score=b.u?b.i/b.u:0;sc2.push(b.score)});
   var notes=[];if(un)notes.push({k:'miss',t:un+' of '+g.length+' cells have no class yet.'});
-  var les=by[3];if(les.n&&les.score<.6&&un<g.length)notes.push({k:'loose',t:'Lesion overlap is '+Math.round(les.score*100)+'%. Trace the red edge more closely.',c:'3'});
+  SK_DIS.forEach(function(d){var l=by[d];if(l&&l.n&&l.score<.6&&un<g.length)notes.push({k:'loose',t:P.classes[d].name+' overlap is '+Math.round(l.score*100)+'%. Trace the patch edge more closely.',c:String(d)})});
   ids.forEach(function(id){if(conf[id]){var best=Object.keys(conf[id]).sort(function(x,y){return conf[id][y]-conf[id][x]})[0];var cnt=conf[id][best];if(cnt>=8)notes.push({k:'wrong',t:cnt+' '+P.classes[id].name.toLowerCase()+' cells were painted as '+P.classes[best].name.toLowerCase()+'.',c:String(id)})}});
   var painted=1-un/g.length;
   return {score:sc2.length?sc2.reduce(function(a,b){return a+b},0)/sc2.length:0,byClass:by,notes:notes,painted:painted,conf:conf,touched:painted>0};
@@ -1023,7 +1061,7 @@ function predictSeg(sc,M,r,P){
     if(nb.length&&r()<(1-cm.q)*.8)v=nb[Math.floor(r()*nb.length)];
     else if(cm.q<.15&&nb.length&&r()<.6)v=nb[0];
     else{var u=r(),cf=cm.conf;for(var c2 in cf){if(u<cf[c2]*2){v=+c2;break}u-=cf[c2]*2}}
-    if(cm.q<.05&&r()<.5)v=gc===3?4:gc;
+    if(cm.q<.05&&r()<.5)v=gc>=5?3:gc;
     o[k]=v}
   return o;
 }
@@ -1096,14 +1134,19 @@ function inside(b,p,y0,y1){var cx=b.x+b.w/2,cy=b.y+b.h/2;return cx>=p.x-4&&cx<=p
 function li(ok,t,tag){return '<li class="'+(ok?'ok':'no')+'"><span>'+t+'</span>'+(tag?'<em>'+tag+'</em>':'')+'</li>'}
 var REP={};
 REP.ppe=function(sc,pred,P){
-  var pp=pred.filter(function(a){return a.c==='person'}),hh=pred.filter(function(a){return a.c==='helmet'}),vv=pred.filter(function(a){return a.c==='vest'}),rows='',bad=0;
+  var pp=pred.filter(function(a){return a.c==='person'}),rows='',bad=0;
+  var POS={head:['helmet','helmet_ear'],chest:['vest','harness'],feet:['boots'],hand:['gloves']},NEG={head:'nohelmet',chest:'novest',feet:'noboots',hand:'nogloves'},LAB={head:'helmet',chest:'vest or harness',feet:'safety boots',hand:'gloves'};
+  function zone(b,p,y0,y1){var cx=b.x+b.w/2,cy=b.y+b.h/2;return cx>=p.x-6&&cx<=p.x+p.w+6&&cy>=p.y+p.h*y0&&cy<=p.y+p.h*y1}
   sc.workers.forEach(function(w,k){var p=bestPerson(pp,w);
+    var truth=[];if(w.helm==='none')truth.push('helmet');if(w.chest==='none')truth.push('vest');if(!w.hidden&&!w.boots)truth.push('boots');if(!w.gloves)truth.push('gloves');
     if(!p){rows+=li(false,'Worker '+(k+1)+': not seen by the camera','Missed worker');bad++;return}
-    var gotH=hh.some(function(h){return inside(h,p,0,.4)}),gotV=vv.some(function(v){return inside(v,p,.18,.8)}),mis=[];if(!gotH)mis.push('helmet');if(!gotV)mis.push('vest');
-    var tm=[];if(!w.helmet)tm.push('helmet');if(!w.vest)tm.push('vest');
-    var same=mis.join()===tm.join();if(!same)bad++;
-    var msg=mis.length?'🚨 Worker '+(k+1)+': no '+mis.join(' or no '):'✔ Worker '+(k+1)+': protected';
-    rows+=li(same,msg,same?'Correct':(mis.length&&!tm.length?'False alarm':'Missed hazard: really '+(tm.length?'no '+tm.join(' or no '):'protected')))});
+    var Z={head:[0,.3],chest:[.12,.65],feet:[.82,1.05],hand:[.4,.85]},miss=[];
+    ['head','chest','feet','hand'].forEach(function(z){if(z==='feet'&&w.hidden)return;
+      var pos=pred.filter(function(a){return POS[z].indexOf(a.c)>-1&&zone(a,p,Z[z][0],Z[z][1])}).length,neg=pred.filter(function(a){return a.c===NEG[z]&&zone(a,p,Z[z][0],Z[z][1])}).length;
+      if(neg>0||pos===0)miss.push(z==='head'?'helmet':z==='chest'?'vest':z==='feet'?'boots':'gloves')});
+    var same=miss.join()===truth.join();if(!same)bad++;
+    var msg=miss.length?'🚨 Worker '+(k+1)+': missing '+miss.join(', '):'✔ Worker '+(k+1)+': fully protected';
+    rows+=li(same,msg,same?'Correct':(miss.length&&!truth.length?'False alarm':'Really '+(truth.length?'missing '+truth.join(', '):'protected')))});
   var ghost=pp.filter(function(p){return !sc.workers.some(function(w){return iouBox(p,w.box)>=.3})}).length;if(ghost){bad++;rows+=li(false,'The camera also sees '+ghost+' person'+(ghost>1?'s':'')+' who is not there','False alarm')}
   return {html:rows,bad:bad};
 };
@@ -1138,10 +1181,19 @@ REP.lane=function(sc,pred,P){
   return {html:li(same,'Lane assist: found '+pred.length+' line'+(pred.length===1?'':'s')+'. '+a.t,same?'Correct':'Should be: '+b.t)+li(true,'There are really '+gtList(sc,false).length+' painted lines.',''),bad:same?0:1};
 };
 REP.skin=function(sc,pred,P){
-  function pct(g){var l=0,s=0;for(var k=0;k<g.length;k++){if(g[k]===3)l++;if(g[k]===3||g[k]===4||g[k]===5)s++}return s?l/s*100:0}
-  function band(v){return v<3?['small affected area','low']:v<10?['moderate affected area','mid']:['large affected area: a clinician should check','high']}
-  var s=pct(pred),t=pct(sc.grid),bs=band(s),bt=band(t),same=bs[1]===bt[1];
-  return {html:li(same,'Lesion covers '+f1(s)+'% of the visible skin: '+bs[0]+'.',same?'Correct':'Should be: '+bt[0])+li(true,'Real lesion area is '+f1(t)+'%. Simulation only, not medical advice.',''),bad:same?0:1};
+  var ADV={5:'Moisturise, avoid triggers and see a pharmacist.',6:'Book a dermatology appointment for plaque treatment.',7:'Skincare routine advice and acne treatment options.',8:'Dermatology review. Protect the pale patches from sun.',9:'URGENT: refer to a specialist to check the mole.'};
+  function areas(g){var a={},tot=0;for(var k=0;k<g.length;k++){var v=g[k];if(v>=3&&v!==2){if(v>=5)a[v]=(a[v]||0)+1;if(v<=4||v>=5)tot++}}return {a:a,tot:tot}}
+  function top(x){var b=null,bn=0;for(var d in x.a)if(x.a[d]>bn){bn=x.a[d];b=+d}return b}
+  var p=areas(pred),t=areas(sc.grid),dp=top(p),dt=top(t);
+  function name(d){return d==null?'no disease found':P.classes[d].name}
+  var same=dp===dt,rows='';
+  Object.keys(t.a).forEach(function(d){var pc=(p.a[d]||0)/p.tot*100,tc=t.a[d]/t.tot*100,ok=Math.abs(pc-tc)<3+tc*.35;
+    rows+=li(ok,P.classes[d].name+' covers '+f1(pc||0)+'% of the visible skin. '+(p.a[d]?ADV[d]:'The app did not find it.'),ok?'Correct':'Real area is '+f1(tc)+'%')});
+  Object.keys(p.a).forEach(function(d){if(!t.a[d])rows+=li(false,'The app also reports '+P.classes[d].name+' ('+f1(p.a[d]/p.tot*100)+'%). It is not there.','False alarm')});
+  if(!rows)rows=li(same,'The app reports no skin disease.',same?'Correct':'');
+  var bad=0;Object.keys(t.a).forEach(function(d){if(!p.a[d]||Math.abs(p.a[d]/p.tot-t.a[d]/t.tot)*100>=3+t.a[d]/t.tot*100*.35)bad=1});Object.keys(p.a).forEach(function(d){if(!t.a[d])bad=1});
+  rows+=li(true,'Main finding: '+name(dp)+(same?'':'. Should be '+name(dt))+'. Simulation only, not medical advice.','');
+  return {html:rows,bad:bad||(same?0:1)};
 };
 REP.pose=function(sc,pred,P){
   var a=sc.coach(pred.pts),b=sc.coach(sc.pts),same=a===b;
@@ -1168,7 +1220,8 @@ function toast(m){var t=$('toast');t.textContent=m;t.hidden=false;clearTimeout(t
 // ---------- landing
 function renderList(){
   var best={};try{best=JSON.parse(localStorage.getItem('llp_best')||'{}')}catch(e){}
-  $('grid').innerHTML=PROJECTS.map(function(p){var b=best[p.id];
+  var llm='<a class="pcard" href="index.html"><span class="pc-ic" aria-hidden="true">🧠</span><span class="pc-tag">LLM response labelling</span><h3>LLM Label Lab</h3><p>Rate and label AI answers for accuracy, tone and safety, with the full practice hub, points and leaderboard.</p><span class="pc-foot"><span>Class and practice mode</span><span class="pc-go">Open →</span></span></a>';
+  $('grid').innerHTML=llm+PROJECTS.map(function(p){var b=best[p.id];
     return '<a class="pcard" href="#/'+p.id+'"><span class="pc-ic" aria-hidden="true">'+p.icon+'</span><span class="pc-tag">'+p.tag+'</span><h3>'+p.name+'</h3><p>'+p.blurb+'</p><span class="pc-foot">'+(b!=null?'<b>Best '+b+'%</b> on new scenes':'Not started')+'<span class="pc-go">Start →</span></span></a>'}).join('');
 }
 function route(){
@@ -1232,7 +1285,7 @@ function evalScene(sc,ann){switch(P.type){case 'seg':return evalSeg(sc,ann,P);ca
 function rushAnn(i){
   var k='r'+i;ST.rushC=ST.rushC||{};if(ST.rushC[k])return ST.rushC[k];var sc=sceneOf(i),r=RNG(555+i*31),out;
   if(P.type==='text'){out={kw:shuffle(r,sc.tokens.map(function(t,j){return isWord(t)?j:-1}).filter(function(j){return j>-1})).slice(0,2),sent:pick(r,['pos','neu','neg']),churn:pick(r,['low','med','high'])}}
-  else if(P.type==='seg'){var g=Array.from(sc.grid);out=new Int8Array(g.length);for(var q=0;q<g.length;q++)out[q]=r()<.28?Math.floor(r()*6):g[q];for(var z=0;z<g.length;z++)if(g[z]===3&&r()<.85)out[z]=4}
+  else if(P.type==='seg'){var g=Array.from(sc.grid);out=new Int8Array(g.length);for(var q=0;q<g.length;q++)out[q]=r()<.28?Math.floor(r()*10):g[q];for(var z=0;z<g.length;z++)if(g[z]>=5&&r()<.85)out[z]=3}
   else if(P.type==='pose'){out=predictPose(sc,{cls:{0:{q:.1,swap:.5},1:{q:.1,swap:.6},2:{q:.1,swap:.6}}},r)}
   else{var cls={};P.classes.forEach(function(c){var cf={};P.classes.forEach(function(o){if(o.id!==c.id)cf[o.id]=.25/(P.classes.length-1)*2});cls[c.id]={recall:.4,locq:.05,conf:cf,decRate:.9,fpPer:.8,q:.1}});out=predictShapes(sc,{cls:cls},r,P.type,P)}
   ST.rushC[k]=out;return out}
@@ -1262,7 +1315,7 @@ function shapeSvg(a,col,o){
 }
 function keySvg(sc){
   var s='';
-  if(P.type==='seg'){var g=sc.grid;for(var c=0;c<6;c++){var d='';for(var k=0;k<g.length;k++)if(g[k]===c){var x=(k%SK_COLS)*SK_CELL,y=((k/SK_COLS)|0)*SK_CELL;d+='M'+x+' '+y+'h'+SK_CELL+'v'+SK_CELL+'h-'+SK_CELL+'z'}s+='<path d="'+d+'" fill="'+SK_CLASSES[c].color+'" fill-opacity=".5"/>'}return s}
+  if(P.type==='seg'){var g=sc.grid;for(var c=0;c<SK_CLASSES.length;c++){var d='';for(var k=0;k<g.length;k++)if(g[k]===c){var x=(k%SK_COLS)*SK_CELL,y=((k/SK_COLS)|0)*SK_CELL;d+='M'+x+' '+y+'h'+SK_CELL+'v'+SK_CELL+'h-'+SK_CELL+'z'}s+='<path d="'+d+'" fill="'+SK_CLASSES[c].color+'" fill-opacity=".5"/>'}return s}
   if(P.type==='pose')return poseSvg({pts:sc.pts},sc,{key:true});
   sc.gt.forEach(function(g){s+=g.decoy?shapeSvg(g,'#dc2626',{dash:1,nofill:1,w:2,label:'✗ '+(g.why||'not one').slice(0,26)}):shapeSvg(g,CC[g.c],{dash:1,nofill:1,w:2.2,label:shortName(g.c)})});
   return s;
@@ -1275,7 +1328,7 @@ function poseSvg(ann,sc,o){
   return s;
 }
 function segSvg(grid,o){
-  o=o||{};var s='';for(var c=0;c<6;c++){var d='';for(var k=0;k<grid.length;k++)if(grid[k]===c){var x=(k%SK_COLS)*SK_CELL,y=((k/SK_COLS)|0)*SK_CELL;d+='M'+x+' '+y+'h'+SK_CELL+'v'+SK_CELL+'h-'+SK_CELL+'z'}if(d)s+='<path d="'+d+'" fill="'+SK_CLASSES[c].color+'" fill-opacity="'+(o.op||.5)+'"/>'}
+  o=o||{};var s='';for(var c=0;c<SK_CLASSES.length;c++){var d='';for(var k=0;k<grid.length;k++)if(grid[k]===c){var x=(k%SK_COLS)*SK_CELL,y=((k/SK_COLS)|0)*SK_CELL;d+='M'+x+' '+y+'h'+SK_CELL+'v'+SK_CELL+'h-'+SK_CELL+'z'}if(d)s+='<path d="'+d+'" fill="'+SK_CLASSES[c].color+'" fill-opacity="'+(o.op||.5)+'"/>'}
   if(o.truth){var d2='';for(var k2=0;k2<grid.length;k2++)if(grid[k2]!==o.truth[k2]&&grid[k2]>=0){var x2=(k2%SK_COLS)*SK_CELL,y2=((k2/SK_COLS)|0)*SK_CELL;d2+='M'+x2+' '+y2+'h'+SK_CELL+'v'+SK_CELL+'h-'+SK_CELL+'z'}if(d2)s+='<path d="'+d2+'" fill="#dc2626" fill-opacity=".28" stroke="#dc2626" stroke-width="1" stroke-opacity=".7"/>'}
   if(o.unl){var d3='';for(var k3=0;k3<grid.length;k3++)if(grid[k3]<0){var x3=(k3%SK_COLS)*SK_CELL,y3=((k3/SK_COLS)|0)*SK_CELL;d3+='M'+x3+' '+y3+'h'+SK_CELL+'v'+SK_CELL+'h-'+SK_CELL+'z'}s+='<path d="'+d3+'" fill="none" stroke="#fff" stroke-opacity=".35" stroke-width="1"/>'}
   return s;
@@ -1376,9 +1429,9 @@ function paintAt(p){
 }
 function prelabel(){
   pushUndo();var sc=sceneOf(ST.idx),a=ST.ann[ST.idx],r=RNG(31+ST.idx*7),g=sc.grid,C=SK_COLS,R=SK_ROWS;
-  for(var k=0;k<g.length;k++){var x=k%C,y=(k/C)|0,gc=g[k],v=gc===3?4:gc,nb=[x>0?g[k-1]:gc,x<C-1?g[k+1]:gc,y>0?g[k-C]:gc,y<R-1?g[k+C]:gc].filter(function(z){return z!==gc});
-    if(nb.length&&r()<.3)v=nb[Math.floor(r()*nb.length)]===3?4:nb[Math.floor(r()*nb.length)];a[k]=v}
-  toast('The helper painted the big areas. Now fix the lesion and the edges.');afterEdit();
+  for(var k=0;k<g.length;k++){var x=k%C,y=(k/C)|0,gc=g[k],v=gc>=5?3:gc,nb=[x>0?g[k-1]:gc,x<C-1?g[k+1]:gc,y>0?g[k-C]:gc,y<R-1?g[k+C]:gc].filter(function(z){return z!==gc});
+    if(nb.length&&r()<.3){v=nb[Math.floor(r()*nb.length)];if(v>=5)v=3};a[k]=v}
+  toast('The helper painted the big areas. Now name and trace the disease patches.');afterEdit();
 }
 function wireCanvas(){
   var cv=$('cv'),T=P.type;
