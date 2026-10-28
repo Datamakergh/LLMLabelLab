@@ -1,6 +1,7 @@
 /* GIGO – shared top navigation. Included as the first thing in <body> on every page; marks the current page. */
 (function () {
   'use strict';
+  if (/[?&]embed=1/.test(location.search)) { document.documentElement.className += ' embed'; return; }
   var page = location.pathname.split('/').pop() || 'index.html';
   if (page === 'play.html') page = 'projects.html';
   var links = [['index.html', 'Overview'], ['projects.html', 'Projects'], ['learn.html', 'Learn more']];

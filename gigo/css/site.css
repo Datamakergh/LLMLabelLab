@@ -229,3 +229,4 @@ a { color: inherit; }
 .topbar #btn-startover { margin-left: auto; }
 
 .qn { color: var(--brand); }
+.embed .back{display:none}.embed body.app{padding-top:0}
