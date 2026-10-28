@@ -796,6 +796,153 @@ PROJECTS.push({
   reportTitle:'What the lane assist would do'
 });
 
+// ===== 9. Self-driving car: road objects (boxes) =====
+var DF=300,DHOR=170,DCAMH=1.5;
+function dP(X,Y,Z){return [320+DF*X/Z,DHOR+DF*(DCAMH-Y)/Z]}
+function dq(pts,fill,e){return poly(pts.map(function(p){return dP(p[0],p[1],p[2])}),fill,e)}
+function dbox(pts){var b=bbox(pts.map(function(p){return dP(p[0],p[1],p[2])}));var x0=cl(b.x,0,640),y0=cl(b.y,0,400),x1=cl(b.x+b.w,0,640),y1=cl(b.y+b.h,0,400);return{x:x0,y:y0,w:x1-x0,h:y1-y0}}
+function dgy(Z){return DHOR+DF*DCAMH/Z}
+var DPLAN=[
+ {car:2,ped:2,light:1,sign:1,xwalk:1},
+ {car:3,ped:1,bike:1,light:1,sign:2},
+ {car:2,moto:1,animal:1,sign:1,ramp:1},
+ {car:3,ped:3,light:2,sign:2,xwalk:1},
+ {car:2,ped:1,bike:1,moto:1,light:1,sign:1,ramp:1},
+ {car:4,ped:2,animal:1,light:1,sign:2},
+ {car:3,ped:2,bike:1,animal:1,light:2,sign:1,xwalk:1},
+ {car:2,ped:1,moto:2,light:1,sign:2,ramp:1},
+ {car:4,ped:3,bike:1,moto:1,light:2,sign:2,xwalk:1},
+ {car:3,ped:2,bike:1,moto:1,animal:2,light:1,sign:2,xwalk:1,ramp:1}],
+ DTEST=[{car:3,ped:2,bike:1,animal:1,light:1,sign:2,xwalk:1},{car:2,ped:1,moto:1,animal:1,light:2,sign:1,ramp:1}];
+function drawCar(cx,gy,s,col){var g='',W=1.8*s;
+  g+=ell(cx,gy,W*.55,.12*s,'#000',{opacity:.3});
+  g+=rect(cx-.8*s,gy-.34*s,.28*s,.34*s,'#111827')+rect(cx+.52*s,gy-.34*s,.28*s,.34*s,'#111827');
+  g+=rect(cx-.9*s,gy-.95*s,1.8*s,.73*s,col,{rx:.1*s})+path('M'+f1(cx-.72*s)+','+f1(gy-.95*s)+' L'+f1(cx-.58*s)+','+f1(gy-1.45*s)+' L'+f1(cx+.58*s)+','+f1(gy-1.45*s)+' L'+f1(cx+.72*s)+','+f1(gy-.95*s)+'Z',col,{stroke:'#000','stroke-opacity':.25,'stroke-width':.02*s});
+  g+=path('M'+f1(cx-.6*s)+','+f1(gy-.98*s)+' L'+f1(cx-.5*s)+','+f1(gy-1.38*s)+' L'+f1(cx+.5*s)+','+f1(gy-1.38*s)+' L'+f1(cx+.6*s)+','+f1(gy-.98*s)+'Z','#1e293b');
+  g+=rect(cx-.88*s,gy-.82*s,.3*s,.14*s,'#ef4444',{rx:.03*s})+rect(cx+.58*s,gy-.82*s,.3*s,.14*s,'#ef4444',{rx:.03*s})+rect(cx-.2*s,gy-.55*s,.4*s,.14*s,'#f8fafc')+rect(cx-.9*s,gy-.3*s,1.8*s,.1*s,'#1f2937');
+  return g}
+function drawPed(cx,gy,s,r){var shirt=pick(r,['#dc2626','#2563eb','#16a34a','#f59e0b','#7c3aed','#0f766e']),pants=pick(r,['#1f2937','#334155','#475569']),skin=pick(r,['#8d5524','#c68642','#e0ac69','#5b3a1f']),hair=pick(r,['#111827','#3b2417','#78350f']),w=r()<.5?.08:-.08,g='';
+  g+=ell(cx,gy,.3*s,.07*s,'#000',{opacity:.25})+rect(cx-.16*s,gy-.85*s,.14*s,.85*s,pants)+rect(cx+.02*s,gy-.85*s,.14*s,.85*s,pants)+rect(cx-.19*s,gy-1.45*s,.38*s,.62*s,shirt,{rx:.05*s})+rect(cx-.27*s,gy-1.42*s,.09*s,.55*s,shirt,{rx:.04*s})+rect(cx+.18*s,gy-1.42*s,.09*s,.55*s,shirt,{rx:.04*s})+circ(cx,gy-1.58*s,.12*s,skin)+path('M'+f1(cx-.12*s)+','+f1(gy-1.6*s)+' A'+f1(.12*s)+','+f1(.12*s)+' 0 0 1 '+f1(cx+.12*s)+','+f1(gy-1.6*s)+'Z',hair);
+  return g}
+function drawBike(cx,gy,s,r,flip){var g='',d=flip?-1:1,col=pick(r,['#2563eb','#dc2626','#16a34a','#111827']);
+  g+=ell(cx,gy,.9*s,.06*s,'#000',{opacity:.25})+circ(cx-.55*s*d,gy-.34*s,.34*s,'none',{stroke:'#111827','stroke-width':.05*s})+circ(cx+.55*s*d,gy-.34*s,.34*s,'none',{stroke:'#111827','stroke-width':.05*s});
+  g+=pline([[cx-.55*s*d,gy-.34*s],[cx-.1*s*d,gy-.75*s],[cx+.4*s*d,gy-.75*s],[cx+.55*s*d,gy-.34*s]],col,.05*s)+lin(cx-.1*s*d,gy-.75*s,cx,gy-.34*s,col,.05*s)+lin(cx+.4*s*d,gy-.75*s,cx+.45*s*d,gy-.95*s,'#111827',.05*s);
+  g+=rect(cx-.28*s,gy-1.35*s,.34*s,.6*s,pick(r,['#f59e0b','#7c3aed','#0f766e']),{rx:.06*s})+circ(cx-.1*s*d,gy-1.5*s,.12*s,'#c68642')+rect(cx-.2*s*d-.07*s,gy-.78*s,.14*s,.5*s,'#334155')+lin(cx-.05*s*d,gy-1.15*s,cx+.42*s*d,gy-.95*s,'#c68642',.07*s);return g}
+function drawMoto(cx,gy,s,r,flip){var g='',d=flip?-1:1,col=pick(r,['#dc2626','#0f172a','#2563eb']);
+  g+=ell(cx,gy,1.1*s,.07*s,'#000',{opacity:.25})+circ(cx-.8*s*d,gy-.33*s,.33*s,'#111827')+circ(cx-.8*s*d,gy-.33*s,.14*s,'#9ca3af')+circ(cx+.8*s*d,gy-.33*s,.33*s,'#111827')+circ(cx+.8*s*d,gy-.33*s,.14*s,'#9ca3af');
+  g+=path('M'+f1(cx-.8*s*d)+','+f1(gy-.4*s)+' L'+f1(cx-.2*s*d)+','+f1(gy-.85*s)+' L'+f1(cx+.4*s*d)+','+f1(gy-.9*s)+' L'+f1(cx+.8*s*d)+','+f1(gy-.4*s)+' L'+f1(cx+.2*s*d)+','+f1(gy-.3*s)+'Z',col)+lin(cx+.6*s*d,gy-.9*s,cx+.72*s*d,gy-1.1*s,'#111827',.06*s);
+  g+=rect(cx-.3*s,gy-1.4*s,.4*s,.6*s,pick(r,['#16a34a','#f59e0b','#475569']),{rx:.06*s})+circ(cx-.05*s,gy-1.52*s,.14*s,pick(r,['#fbbf24','#e5e7eb','#111827']))+lin(cx,gy-1.15*s,cx+.65*s*d,gy-1.0*s,'#475569',.08*s)+lin(cx-.1*s,gy-.85*s,cx+.2*s*d,gy-.5*s,'#334155',.1*s);return g}
+function drawAnimal(cx,gy,s,r,flip,cat){var g='',d=flip?-1:1,col=cat?pick(r,['#f59e0b','#6b7280','#111827']):pick(r,['#92400e','#d6c3a3','#1f2937']),k=cat?.65:1;
+  g+=ell(cx,gy,.5*s*k,.05*s,'#000',{opacity:.25})+rect(cx-.3*s*k*d-.04*s,gy-.4*s*k,.08*s,.4*s*k,col)+rect(cx+.25*s*k*d-.04*s,gy-.4*s*k,.08*s,.4*s*k,col)+ell(cx,gy-.5*s*k,.42*s*k,.2*s*k,col)+circ(cx+.42*s*k*d,gy-.68*s*k,.15*s*k,col)+lin(cx-.4*s*k*d,gy-.55*s*k,cx-.6*s*k*d,gy-.8*s*k,col,.07*s*k);
+  g+=cat?path('M'+f1(cx+.36*s*k*d)+','+f1(gy-.8*s*k)+' l'+f1(.04*s*k*d)+','+f1(-.14*s*k)+' l'+f1(.08*s*k*d)+','+f1(.12*s*k)+'Z',col):ell(cx+.5*s*k*d,gy-.78*s*k,.05*s*k,.1*s*k,'#3b1d0a');return g}
+function drawLight(X,Z,r){var s=DF/Z,p=dP(X,0,Z),cx=p[0],gy=p[1],lit=pick(r,['red','yellow','green']),g='';
+  g+=rect(cx-.05*s,gy-4.2*s,.1*s,4.2*s,'#475569')+rect(cx-.22*s,gy-4.15*s,.44*s,1.05*s,'#111827',{rx:.05*s});
+  [['red',3.9],['yellow',3.62],['green',3.34]].forEach(function(l){g+=circ(cx,gy-l[1]*s,.1*s,lit===l[0]?{red:'#ef4444',yellow:'#facc15',green:'#22c55e'}[l[0]]:'#374151')});
+  return {svg:g,box:{x:cx-.22*s,y:gy-4.15*s,w:.44*s,h:1.05*s}}}
+function drawSign(X,Z,type){var s=DF/Z,p=dP(X,0,Z),cx=p[0],gy=p[1],cy=gy-2.35*s,R=.36*s,g='';
+  g+=rect(cx-.03*s,cy,.06*s,gy-cy,'#6b7280');
+  if(type==='stop'){var o=[];for(var k=0;k<8;k++){var a=Math.PI/8+k*Math.PI/4;o.push([cx+Math.cos(a)*R*1.08,cy+Math.sin(a)*R*1.08])}g+=poly(o,'#dc2626',{stroke:'#fff','stroke-width':.03*s})+T('text',{x:f1(cx),y:f1(cy+R*.2),'text-anchor':'middle','font-size':f1(R*.6),fill:'#fff','font-weight':'800','font-family':'Arial'},'STOP')}
+  else if(type==='speed'){g+=circ(cx,cy,R,'#fff',{stroke:'#dc2626','stroke-width':.09*s})+T('text',{x:f1(cx),y:f1(cy+R*.25),'text-anchor':'middle','font-size':f1(R*.85),fill:'#111827','font-weight':'800','font-family':'Arial'},'50')}
+  else if(type==='yield'){g+=poly([[cx-R*1.1,cy-R*.8],[cx+R*1.1,cy-R*.8],[cx,cy+R]],'#fff',{stroke:'#dc2626','stroke-width':.09*s})}
+  else if(type==='park'){g+=rect(cx-R,cy-R,2*R,2*R,'#2563eb',{rx:.05*s})+T('text',{x:f1(cx),y:f1(cy+R*.35),'text-anchor':'middle','font-size':f1(R*1.2),fill:'#fff','font-weight':'800','font-family':'Arial'},'P')}
+  else{g+=circ(cx,cy,R,'#dc2626')+rect(cx-R*.65,cy-R*.15,R*1.3,R*.3,'#fff')}
+  return {svg:g,box:{x:cx-R*1.1,y:cy-R*1.05,w:R*2.2,h:R*2.1}}}
+function genDrive(i,test){
+  var r=RNG(9300+i*67+(test?800:0)),art='',gt=[],plan=(test?DTEST:DPLAN)[i],items=[],placed=[],cnt={car:0,ped:0,bike:0,moto:0,animal:0,light:0,sign:0,xwalk:0,ramp:0,curb:0,building:0},vru=[];
+  var sky=pick(r,[['#93c5fd','#e0f2fe'],['#a5b4fc','#e0e7ff'],['#7dd3fc','#f0f9ff'],['#fcd9a8','#fef3c7']]);
+  art+=T('defs',{},T('linearGradient',{id:'ds@U',x1:0,y1:0,x2:0,y2:1},'<stop offset="0" stop-color="'+sky[0]+'"/><stop offset="1" stop-color="'+sky[1]+'"/>'));
+  art+=rect(0,0,640,DHOR+2,'url(#ds@U)')+rect(0,DHOR,640,230,'#6b7280');
+  for(var cI=0;cI<3;cI++)art+=ell(rr(r,40,600),rr(r,20,90),rr(r,30,60),rr(r,8,14),'#fff',{opacity:.7});
+  // distant skyline
+  for(var d=0;d<12;d++){var bw=rr(r,26,50),bx=d*54+rr(r,-10,10),bh=rr(r,14,44);art+=rect(bx,DHOR-bh,bw,bh,'#a7b4c4',{opacity:.9})}
+  // road, sidewalks, curbs
+  art+=dq([[-4,0,1.7],[4,0,1.7],[4,0,90],[-4,0,90]],'#4b5563');
+  [-1,1].forEach(function(sd){
+    art+=dq([[sd*4.15,0,1.7],[sd*7.6,0,1.7],[sd*7.6,0,90],[sd*4.15,0,90]],'#cbd5e1');
+    for(var z=2;z<60;z*=1.3)art+=lin.apply(null,dP(sd*4.15,0,z).concat(dP(sd*7.6,0,z),['#94a3b8',1]));
+    art+=dq([[sd*4,0,1.7],[sd*4.15,0,1.7],[sd*4.15,0,90],[sd*4,0,90]],'#94a3b8');
+    art+=dq([[sd*4,0,1.7],[sd*4,.15,1.7],[sd*4,.15,90],[sd*4,0,90]],'#e5e7eb');
+  });
+  // lane markings
+  for(var z0=2.5;z0<70;z0+=5)art+=dq([[-.08,0,z0],[.08,0,z0],[.08,0,z0+2.2],[-.08,0,z0+2.2]],'#f8fafc');
+  art+=dq([[-3.75,0,1.7],[-3.65,0,1.7],[-3.65,0,90],[-3.75,0,90]],'#f1f5f9')+dq([[3.65,0,1.7],[3.75,0,1.7],[3.75,0,90],[3.65,0,90]],'#f1f5f9');
+  // curb boxes (near segments)
+  [-1,1].forEach(function(sd){var cb=dbox([[sd*4,0,5],[sd*4,.15,5],[sd*4,.15,14],[sd*4,0,14],[sd*4.15,.15,5],[sd*4.15,.15,14]]);
+    gt.push({c:'curb',x:cb.x,y:cb.y,w:cb.w,h:cb.h});cnt.curb++});
+  // crosswalk and speed ramp
+  var xz=plan.ramp?rr(r,11,15):rr(r,7,13);
+  if(plan.xwalk){for(var k=-3.5;k<3.6;k+=1){art+=dq([[k,0,xz],[k+.5,0,xz],[k+.5,0,xz+3],[k,0,xz+3]],'#f8fafc')}
+    var xb=dbox([[-4,0,xz],[4,0,xz],[4,0,xz+3],[-4,0,xz+3]]);gt.push({c:'crosswalk',x:xb.x,y:xb.y,w:xb.w,h:xb.h});cnt.xwalk++}
+  var rz=rr(r,4.5,7);
+  if(plan.ramp){for(var kk=-4,n2=0;kk<4;kk+=.8,n2++){art+=dq([[kk,.12,rz],[kk+.8,.12,rz],[kk+.8,.12,rz+1.6],[kk,.12,rz+1.6]],n2%2?'#111827':'#facc15')+dq([[kk,0,rz],[kk+.8,0,rz],[kk+.8,.12,rz],[kk,.12,rz]],n2%2?'#1f2937':'#eab308')}
+    var rb=dbox([[-4,0,rz],[4,0,rz],[4,.12,rz],[-4,.12,rz],[-4,.12,rz+1.6],[4,.12,rz+1.6]]);gt.push({c:'speedramp',x:rb.x,y:rb.y,w:rb.w,h:rb.h});cnt.ramp++}
+  // buildings (far to near)
+  var bl=[];
+  [-1,1].forEach(function(sd){var z=rr(r,2.5,5);var seg=[];while(z<75){var len=rr(r,8,15),h=rr(r,6,15),col=pick(r,['#e7c9a9','#c7d2e0','#d9c7e8','#f0d5d0','#cfe3c8','#d6d3c4','#b8c7d8']);seg.push({sd:sd,z0:z,z1:z+len,h:h,col:col});z+=len+rr(r,.5,3)}bl=bl.concat(seg)});
+  bl.sort(function(a,b){return b.z0-a.z0});
+  var bviews=[];
+  bl.forEach(function(b){var X0=b.sd*7.6,X1=b.sd*15,s0=b.sd;
+    var side=[[X0,0,b.z0],[X0,0,b.z1],[X0,b.h,b.z1],[X0,b.h,b.z0]],front=[[X0,0,b.z0],[X1,0,b.z0],[X1,b.h,b.z0],[X0,b.h,b.z0]];
+    art+=dq(front,b.col,{opacity:.95})+dq([[X0,b.h,b.z0],[X1,b.h,b.z0],[X1,b.h,b.z1],[X0,b.h,b.z1]],'#9ca3af')+dq(side,b.col,{stroke:'#000','stroke-opacity':.18,'stroke-width':1});
+    art+=dq([[X0,0,b.z0],[X0,0,b.z1],[X0,.0,b.z1],[X0,0,b.z0]],b.col);
+    // shade of side face
+    art+=dq(side,'#000',{opacity:.1});
+    // windows on side face
+    for(var zz=b.z0+.8;zz<b.z1-1.4;zz+=2.4)for(var yy=3.2;yy<b.h-1.2;yy+=3){art+=dq([[X0,yy,zz],[X0,yy,zz+1.3],[X0,yy+1.6,zz+1.3],[X0,yy+1.6,zz]],'#bfdbfe',{stroke:'#475569','stroke-width':.8})}
+    // ground floor door/shop
+    art+=dq([[X0,0,b.z0+1],[X0,0,b.z0+2.6],[X0,2.4,b.z0+2.6],[X0,2.4,b.z0+1]],'#475569');
+    // windows on front face
+    var fw=Math.abs(X1-X0);for(var xx=0;xx<fw-1.5;xx+=2.4)for(var yb=1.2;yb<b.h-1.2;yb+=3){art+=dq([[X0+s0*(xx+.8),yb,b.z0],[X0+s0*(xx+2),yb,b.z0],[X0+s0*(xx+2),yb+1.6,b.z0],[X0+s0*(xx+.8),yb+1.6,b.z0]],'#bfdbfe',{stroke:'#475569','stroke-width':.8})}
+    var bb=dbox([[X0,0,b.z0],[X1,0,b.z0],[X1,b.h,b.z0],[X0,b.h,b.z0],[X0,0,b.z1],[X0,b.h,b.z1]]);bviews.push({z:b.z0,b:bb,b0:b})});
+  // keep the 4 nearest buildings with good size
+  bviews.filter(function(v){return v.b.w>40&&v.b.h>50}).sort(function(a,b){return a.z-b.z}).slice(0,4).forEach(function(v){gt.push({c:'building',x:v.b.x,y:v.b.y,w:v.b.w,h:v.b.h});cnt.building++});
+  // decoys on facades
+  var decoySide=pick(r,[-1,1]);
+  if(i%3===1||test&&i===0){var zc=rr(r,6,9),sc2=DF/zc,pp=dP(decoySide*7.6,1.0,zc);var g0='<rect x="'+f1(pp[0]-.5*sc2)+'" y="'+f1(pp[1]-2.1*sc2)+'" width="'+f1(1.0*sc2)+'" height="'+f1(2.2*sc2)+'" fill="#fde68a" stroke="#92400e" stroke-width="2"/>';
+    g0+=drawPed(pp[0],pp[1]-.15*sc2,sc2*.95,r);art+=g0;gt.push({c:'pedestrian',decoy:true,why:'A poster of a person is not a pedestrian',x:pp[0]-.5*sc2,y:pp[1]-2.1*sc2,w:1.0*sc2,h:2.2*sc2})}
+  if(i%2===0){var zc2=rr(r,10,16),sc3=DF/zc2,ps=dP(-decoySide*7.6,3,zc2);art+=circ(ps[0],ps[1],.45*sc3,'#fbbf24',{stroke:'#7c2d12','stroke-width':.05*sc3})+rect(ps[0]-.35*sc3,ps[1]-.08*sc3,.7*sc3,.16*sc3,'#7c2d12');gt.push({c:'trafficsign',decoy:true,why:'A shop sign on a building is not a traffic sign',x:ps[0]-.45*sc3,y:ps[1]-.45*sc3,w:.9*sc3,h:.9*sc3})}
+  // objects: gather, then draw far to near
+  function clear(b){return placed.every(function(q){var x0=Math.max(q.x,b.x),y0=Math.max(q.y,b.y),x1=Math.min(q.x+q.w,b.x+b.w),y1=Math.min(q.y+q.h,b.y+b.h);var ov=Math.max(0,x1-x0)*Math.max(0,y1-y0);return ov<.14*Math.min(q.w*q.h,b.w*b.h)})}
+  function add(kind,gen){for(var t=0;t<80;t++){var o=gen();if(!o)continue;if(!clear(o.box))continue;placed.push(o.box);items.push(o);return}}
+  for(var a=0;a<(plan.car||0);a++)add('car',function(){var Z=rr(r,5,38),X=r()<.6?1.8:-1.8,s=DF/Z,p=dP(X,0,Z);var col=pick(r,['#dc2626','#2563eb','#f8fafc','#111827','#f59e0b','#16a34a','#94a3b8']);return {z:Z,svg:drawCar(p[0],p[1],s,col),box:{x:p[0]-.9*s,y:p[1]-1.45*s,w:1.8*s,h:1.45*s},c:'car'}});
+  for(var b2=0;b2<(plan.ped||0);b2++)add('ped',function(){var Z=rr(r,5,28),road=r()<.5,X=road?(plan.xwalk&&r()<.7?rr(r,-3.2,3.2):rr(r,-3.2,3.2)):(r()<.5?-1:1)*rr(r,5,6.8);if(plan.xwalk&&road)Z=xz+rr(r,.4,2.6);var s=DF/Z,p=dP(X,0,Z);return {z:Z,svg:drawPed(p[0],p[1],s,r),box:{x:p[0]-.28*s,y:p[1]-1.72*s,w:.56*s,h:1.72*s},c:'pedestrian'}});
+  for(var c2=0;c2<(plan.bike||0);c2++)add('bike',function(){var Z=rr(r,6,24),X=rr(r,-3.4,3.4),s=DF/Z,p=dP(X,0,Z),fl=r()<.5;return {z:Z,svg:drawBike(p[0],p[1],s,r,fl),box:{x:p[0]-.95*s,y:p[1]-1.65*s,w:1.9*s,h:1.65*s},c:'bicycle'}});
+  for(var m2=0;m2<(plan.moto||0);m2++)add('moto',function(){var Z=rr(r,6,26),X=rr(r,-3.2,3.2),s=DF/Z,p=dP(X,0,Z),fl=r()<.5;return {z:Z,svg:drawMoto(p[0],p[1],s,r,fl),box:{x:p[0]-1.15*s,y:p[1]-1.7*s,w:2.3*s,h:1.7*s},c:'motorbike'}});
+  for(var n3=0;n3<(plan.animal||0);n3++)add('animal',function(){var Z=rr(r,4,16),X=r()<.5?rr(r,-3.4,3.4):(r()<.5?-1:1)*rr(r,5,6.5),s=DF/Z,p=dP(X,0,Z),cat=r()<.4,fl=r()<.5;var k=cat?.65:1;return {z:Z,svg:drawAnimal(p[0],p[1],s,r,fl,cat),box:{x:p[0]-.58*s*k,y:p[1]-.95*s*k,w:1.16*s*k,h:.95*s*k},c:'animal'}});
+  for(var l2=0;l2<(plan.light||0);l2++)add('light',function(){var Z=rr(r,8,40),X=(r()<.5?-1:1)*5.0,o=drawLight(X,Z,r);return {z:Z,svg:o.svg,box:o.box,c:'trafficlight'}});
+  var stypes=shuffle(r,['stop','speed','yield','park','noentry']);
+  for(var s2=0;s2<(plan.sign||0);s2++)add('sign',function(){var Z=rr(r,6,36),X=(r()<.5?-1:1)*4.75,o=drawSign(X,Z,stypes[s2%5]);return {z:Z,svg:o.svg,box:o.box,c:'trafficsign'}});
+  items.sort(function(a,b){return b.z-a.z});
+  items.forEach(function(it){art+=it.svg;gt.push({c:it.c,x:it.box.x,y:it.box.y,w:it.box.w,h:it.box.h});
+    if(it.c==='pedestrian'||it.c==='bicycle'||it.c==='animal'||it.c==='motorbike')vru.push({c:it.c,box:it.box});if(cnt[it.c]!=null)cnt[it.c]++});
+  var cc={car:0,pedestrian:0,bicycle:0,motorbike:0,animal:0,trafficlight:0,trafficsign:0};gt.forEach(function(g){if(!g.decoy&&cc[g.c]!=null)cc[g.c]++});
+  return {art:art,gt:gt,counts:cc,hasX:!!plan.xwalk,hasR:!!plan.ramp};
+}
+PROJECTS.push({
+  id:'drive',name:'Self-driving car: road objects',icon:'🚗',type:'box',tag:'Bounding box',
+  blurb:'Box pedestrians, cars, signs, lights, crosswalks, speed ramps and more so a self-driving car knows what is ahead.',
+  client:'An autonomous-driving team trains a camera model to see the road. The car brakes for people and animals, slows for crosswalks and speed ramps, and reads lights and signs. It learns only from the boxes you draw.',
+  source:'https://datamakergh.github.io/GIGO/play.html?scene=road',
+  classes:[
+    {id:'pedestrian',name:'Pedestrian',color:'#dc2626',help:'A person on foot, on the road or the sidewalk. Not a poster or a picture.'},
+    {id:'car',name:'Car',color:'#2563eb',help:'A car on the road. Box the whole car from roof to wheels.'},
+    {id:'trafficlight',name:'Traffic light',color:'#f59e0b',help:'The black light housing on a pole. Box the housing, not the whole pole.'},
+    {id:'crosswalk',name:'Crosswalk',color:'#0ea5e9',help:'White zebra stripes painted across the road.'},
+    {id:'trafficsign',name:'Traffic sign',color:'#7c3aed',help:'A road sign on a pole: stop, speed, yield, parking, no entry. A shop sign is not one.'},
+    {id:'building',name:'Building',color:'#64748b',help:'A building next to the road. Box the whole visible building.'},
+    {id:'curb',name:'Road curb',color:'#16a34a',help:'The raised kerb edge between road and sidewalk. Box the near stretch.'},
+    {id:'bicycle',name:'Bicycle',color:'#0d9488',help:'A bicycle with its rider. Box both together.'},
+    {id:'motorbike',name:'Motorbike',color:'#be123c',help:'A motorbike with its rider. Box both together.'},
+    {id:'animal',name:'Animal (dog, cat)',color:'#a16207',help:'A dog or a cat on or near the road. A hazard the car must brake for.'},
+    {id:'speedramp',name:'Speed ramp',color:'#eab308',help:'A raised yellow and black hump across the road that the car must slow down for.'}],
+  guide:['Box each object tight, from edge to edge.','One box per object. Two cars get two boxes.','Box the housing of a traffic light and the plate of a traffic sign, not the pole.','Box a cyclist or a rider together with the bicycle or motorbike.','The crosswalk is the whole striped area. The speed ramp is the yellow and black hump.','A poster of a person and a shop sign are not real. Do not box them.','Box the near stretch of the curb on each side of the road.'],
+  traps:['A poster of a person on a wall.','A round shop sign looks like a traffic sign.','A distant car is small but still needs a box.','A speed ramp can look like a crosswalk.','A dog or a cat can run onto the road.'],
+  gigo:'If you skip a pedestrian or an animal, the car does not brake. If you box a poster, the car brakes for nothing. If you miss a speed ramp, the car hits it at full speed.',
+  nTrain:10,nTest:2,gen:genDrive,
+  tips:{pedestrian:'Never skip a person. Skip posters.',car:'Box every car, near and far.',trafficlight:'Box only the light housing.',crosswalk:'Box the whole striped area across the road.',trafficsign:'Box the sign plate. Skip shop signs.',building:'Box the whole building face you can see.',curb:'Box the raised edge on both sides.',bicycle:'Include the rider in the box.',motorbike:'Include the rider in the box.',animal:'Dogs and cats are small. Look near the kerb.',speedramp:'Box the yellow and black hump across the lane.'},
+  reportTitle:'What the car would do'
+});
+
 // ===== 6. Skin lesion segmentation (pixel classes) =====
 var SK_COLS=32,SK_ROWS=20,SK_CELL=20;
 function genSkin(i,test){
@@ -1252,6 +1399,21 @@ REP.churn=function(sc,pred,P){
   if(!pred.known)html+=li(false,'The model saw no words it knows, so it guessed Neutral and Low.','');
   return {html:html,bad:(sOk&&cOk)?0:1};
 };
+REP.drive=function(sc,pred,P){
+  var cnt={},rows='',bad=0;P.classes.forEach(function(c){cnt[c.id]=pred.filter(function(a){return a.c===c.id}).length});
+  function near(id){return sc.gt.filter(function(g){return !g.decoy&&g.c===id&&g.y+g.h>260})}
+  var vru=['pedestrian','bicycle','motorbike','animal'],seen=0,real=0;
+  vru.forEach(function(id){var t=sc.counts[id]||0,c=cnt[id]||0;real+=t;seen+=Math.min(t,c);
+    if(!t&&!c)return;var ok=c===t;if(!ok)bad++;
+    rows+=li(ok,cName(P,id)+': car sees '+c+', really '+t+(ok?(t?'. Brakes and gives way.':''):(c<t?'. It does not see '+(t-c)+' and drives on.':'. It brakes for '+(c-t)+' that is not there.')),ok?'Safe':(c<t?'Collision risk':'Phantom braking'))});
+  var rl=sc.counts.trafficlight||0,cl2=cnt.trafficlight||0;if(rl||cl2){var ok2=rl===cl2;if(!ok2)bad++;rows+=li(ok2,ok2?'Traffic lights read: '+cl2+'. The car obeys the signal.':'Traffic lights: sees '+cl2+', really '+rl+'. It may run a red light or stop at nothing.',ok2?'Safe':'Signal error')}
+  var ts=sc.counts.trafficsign||0,cs=cnt.trafficsign||0;if(ts||cs){var ok3=ts===cs;if(!ok3)bad++;rows+=li(ok3,ok3?'Traffic signs read: '+cs+'. Speed limits and stop signs are followed.':'Traffic signs: sees '+cs+', really '+ts+'. It may miss a stop sign or obey a shop sign.',ok3?'Safe':'Sign error')}
+  if(sc.hasX||cnt.crosswalk){var ok4=(cnt.crosswalk>0)===!!sc.hasX;if(!ok4)bad++;rows+=li(ok4,cnt.crosswalk>0?'Crosswalk ahead: the car slows and watches for walkers.':'No crosswalk seen: normal speed.',ok4?'Safe':(sc.hasX?'Does not slow at a crosswalk':'Slows for nothing'))}
+  if(sc.hasR||cnt.speedramp){var ok5=(cnt.speedramp>0)===!!sc.hasR;if(!ok5)bad++;rows+=li(ok5,cnt.speedramp>0?'Speed ramp ahead: the car slows to a crawl.':'No speed ramp seen: normal speed.',ok5?'Safe':(sc.hasR?'Hits the ramp at full speed':'Slows for nothing'))}
+  var cc=sc.counts.car||0,cr=cnt.car||0;if(cc||cr){var ok6=cc===cr;if(!ok6)bad++;rows+=li(ok6,ok6?'Cars tracked: '+cr+'. Safe following distance kept.':'Cars: sees '+cr+', really '+cc+'. Distance to the car ahead may be wrong.',ok6?'Safe':'Tracking error')}
+  var kb=cnt.curb>0,bd=cnt.building>0;rows+=li(kb,kb?'Road edge found: the car stays on the road.':'Road edge not found: the car may drift to the kerb.',kb?'Safe':'Lane keeping weak');
+  return {html:rows,bad:bad};
+};
 
 // ===== app: landing, project view, drawing tools, simulator, results =====
 var P=null,ST=null,SCN={},RUSH=[2,4],KC={ok:'#16a34a',loose:'#d97706',wrong:'#dc2626',extra:'#dc2626',decoy:'#dc2626'};
@@ -1324,6 +1486,7 @@ coffee:{does:'An app measures how much of a coffee leaf is infected and suggests
 lane:{does:'A driver-assist system finds the painted lane lines on the road to keep the car in its lane.',task:'Click points along each painted line from the near end to the far end, and finish with Enter or a double-click. Pick the right line type. Skip shadows and tyre marks.',out:'The model learns where the lines are. Bad lines mean wrong lane warnings.'},
 skin:{does:'A dermatology-support app finds skin patches on a face photo and names the condition.',task:'Paint every cell of the picture with a class: eyes, hair, background, skin, and the condition (eczema, psoriasis, acne, vitiligo or dark mole). Start with the big areas, then trace the patches.',out:'The model learns which pixels are which condition. A missed dark mole is the most dangerous mistake.'},
 pose:{does:'An exercise-coaching app watches a person move and gives spoken advice on their form.',task:'Click the 14 body joints in order, from the head down to the feet. Drag a point to fix it. Watch for left and right: the red band is on the person’s left wrist.',out:'The model learns body positions, so the coach can judge the exercise. Swapped joints give wrong advice.'},
+drive:{does:'A self-driving car uses its front camera to see people, animals, vehicles, lights, signs and road features, then decides when to brake, slow down or go.',task:'Draw a tight box around every pedestrian, car, traffic light, crosswalk, traffic sign, building, curb, bicycle, motorbike, animal and speed ramp, and choose the class. Skip the poster of a person and the round shop sign.',out:'The model learns what the road looks like. A missed pedestrian means no braking, and a boxed poster means the car stops for nothing.'},
 churn:{does:'A coffee cooperative reads farmer messages to spot unhappy customers who might leave.',task:'For each message, tick the words that carry the feeling, choose Positive, Neutral or Negative, and choose the churn risk: Low, Medium or High. Treat a phrase like “not late” as one group.',out:'The model learns to flag customers at risk. Wrong labels mean missed warnings or wasted follow-ups.'}};
 function introHtml(){var i=INTRO[P.id];if(!i)return '';var n=P.type==='text'?'messages':'scenes';
   return '<div class="howto"><div><b>What the system does</b><p>'+esc(i.does)+'</p></div><div><b>Your task</b><p>'+esc(i.task)+'</p></div><div><b>Why it matters</b><p>'+esc(i.out)+'</p></div></div><ol class="steps3"><li>Label the '+P.nTrain+' training '+n+' on the next slide.</li><li>Press <b>Run training</b> and watch the simulated model learn from your labels.</li><li>Check the results on new '+n+', fix your labels, and train again to improve.</li></ol>'}
