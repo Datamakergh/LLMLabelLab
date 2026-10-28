@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" type="image/png" href="assets/favicon.png">
+<link rel="apple-touch-icon" href="assets/favicon.png">
+<title>GIGO – Train the AI, See Results in Realtime</title>
+<meta name="description" content="Label data, then watch an AI act on it. A hands-on simulator for AI data annotation.">
+<link rel="stylesheet" href="css/styles.css">
+<link rel="stylesheet" href="css/site.css">
+</head>
+<body class="site">
+<script src="js/nav.js"></script>
+
+<main>
+  <section class="hero">
+    <div class="hero-in">
+      <div class="hero-copy">
+        <h1>Garbage in.<br><span>Garbage out.</span></h1>
+        <p class="lead">Label real-world scenes, then watch an AI act on your labels. Every missed or sloppy label shows up in what it does.</p>
+        <div class="hero-ctas">
+          <a class="btn primary" href="projects.html">Explore projects</a>
+          <a class="btn ghost-light" href="#how">How it works</a>
+        </div>
+        <ul class="hero-facts">
+          <li><b>5</b> scenes</li>
+          <li><b>2</b> label types</li>
+        </ul>
+      </div>
+      <figure class="hero-visual" aria-roledescription="carousel" aria-label="Scenes">
+        <div class="hs-stage"></div>
+        <a class="hs-label" href="play.html"></a>
+        <figcaption class="float f1"><i class="dot ok"></i>Good label: AI gets it</figcaption>
+        <figcaption class="float f2"><i class="dot warn"></i>Sloppy label: AI hesitates</figcaption>
+        <figcaption class="float f3"><i class="dot bad"></i>No label: AI is blind</figcaption>
+        <div class="hs-dots"></div>
+      </figure>
+    </div>
+  </section>
+
+  <section class="sect" id="how">
+    <div class="band-in">
+      <h2 class="sec-title">How it works</h2>
+      <div class="hero-cards">
+        <article class="hcard">
+          <span class="hc-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="14" rx="2"/><path d="M8 9h5v5H8z"/></svg></span>
+          <span class="hc-step">01</span>
+          <h3>Label</h3>
+          <p>Draw boxes or mark answers. Rush it or take care: your call.</p>
+        </article>
+        <article class="hcard">
+          <span class="hc-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 4l14 8-14 8z"/></svg></span>
+          <span class="hc-step">02</span>
+          <h3>Simulate</h3>
+          <p>A simulated AI drives, counts, diagnoses or answers using only your labels.</p>
+        </article>
+        <article class="hcard">
+          <span class="hc-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 16l5-5 4 4 7-7"/><path d="M15 8h5v5"/></svg></span>
+          <span class="hc-step">03</span>
+          <h3>Improve</h3>
+          <p>See what went wrong and why. Fix it, run again, compare.</p>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <section class="sect alt">
+    <div class="band-in">
+      <h2 class="sec-title">Why labels matter</h2>
+      <div class="why-grid">
+        <article class="wcard"><h3>Models copy their data</h3><p>An AI only knows what its labels teach it. Mistakes are learned too.</p></article>
+        <article class="wcard"><h3>Small errors add up</h3><p>One missed person or one wrong answer can decide the outcome.</p></article>
+        <article class="wcard"><h3>Annotators shape AI</h3><p>Careful labelling is the first safety check every AI system gets.</p></article>
+      </div>
+    </div>
+  </section>
+
+  <section class="sect">
+    <div class="band-in">
+      <div class="sec-head">
+        <h2 class="sec-title">Scenes</h2>
+        <a class="more" href="projects.html">All projects &rarr;</a>
+      </div>
+      <div id="teaser" class="gallery"></div>
+    </div>
+  </section>
+
+  <section class="cta-band">
+    <div class="band-in">
+      <h2>Ready to label?</h2>
+      <p>Pick a scene. It takes about five minutes.</p>
+      <a class="btn primary" href="projects.html">Choose a scene</a>
+    </div>
+  </section>
+</main>
+
+<footer class="site-foot"><p>GIGO, a DGL AI simulator. Educational, not a real AI model.</p></footer>
+
+<script src="js/config.js"></script>
+<script src="js/scene.js"></script>
+<script src="js/warehouse.js"></script>
+<script src="js/drone.js"></script>
+<script src="js/crop.js"></script>
+<script src="js/llm.js"></script>
+<script src="js/gallery.js"></script>
+<script src="js/hero.js"></script>
+<script>
+  (function (G) {
+    G.renderGallery(document.getElementById('teaser'), ['drone', 'crop', 'llm']);
+    G.initHero(document.querySelector('.hero-visual'));
+  })(window.GIGO);
+</script>
+</body>
+</html>

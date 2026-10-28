@@ -29,3 +29,8 @@ Run `supabase/setup3.sql` after the other two scripts. Trainees get a "Check my 
 ## Project Lab (`projects.html`)
 
 Eight simulation projects, one page: bounding box (safety equipment, grazing, crop pests), polygon (coffee leaf disease), polyline (lane lines), semantic segmentation (skin lesions), keypoints (exercise coaching) and text sentiment/churn (coffee customers). Trainees label generated scenes, a simulated model learns only from those labels, and a system report shows the real-world consequences on new scenes. Progress is kept in the browser only.
+
+
+## GIGO scenes (`gigo/`)
+
+The GIGO annotation and simulation app (road, warehouse PPE, drone census, maize scout, LLM answers) lives in `gigo/` and runs from the same deployment: open `gigo/projects.html`. Details, file mapping and tests are in `MIGRATION.md`. Run its tests with `node gigo/tests/run.js` and `node tests/migration.js`. Project Lab source is in `src/project-lab/` (`python3 build.py` rebuilds `projects.html`).
