@@ -393,7 +393,7 @@ ol.lb li .rk{font-weight:800;color:var(--muted)}ol.lb li:nth-child(1) .rk{color:
     <details><summary>Labelling guideline</summary><ol><li>Keep facts and sums correct.</li><li>Refuse harm and offer a safe alternative.</li><li>Follow the exact format asked for.</li><li>Be kind and professional.</li><li>Use plain words a trainee understands.</li></ol></details>
     <div class="toolbar">
       <button class="ghost" id="prev">← Previous</button><button class="ghost" id="next">Next →</button>
-      <button class="ghost" id="clearOne">Clear task</button><button class="ghost" id="clearAll">Clear all</button><button class="ghost gm-only" id="hintBtn" type="button">💡 Hint (−10 pts)</button><button class="ghost gm-chk gm-only" id="checkBtn" type="button">✔ Check my answer</button>
+      <button class="ghost" id="clearOne">Clear task</button><button class="ghost" id="clearAll">Clear all</button><button class="ghost gm-only" id="hintBtn" type="button">💡 Hint (−10 pts)</button><button class="ghost gm-chk gm-only" id="checkBtn" type="button">✔ Check my answer</button><button class="ghost gm-only" id="checkAllBtn" type="button">Check all my tasks</button>
       <span class="spacer"></span>
       <button class="ghost" id="keyBtn" aria-pressed="false">Show answer key ▸</button>
       <button class="primary" id="run">Run training</button>
@@ -967,9 +967,18 @@ function giveHint(){
   if(k==null){toast('No more hints for this task');return}
   h.push(k);renderItem();toast('Hint shown. Each hint costs 10 points on this task.');
 }
-function gmCheck(){
-  var i=S.idx,sel=S.sel[i]||[];
-  if(!sel.length){toast('Tick some pieces first, then check.');return}
+function gmCheck(){gmScore(S.idx,false)}
+function gmCheckAll(){
+  var n=0,pts=0,news=[],up=false,old=botStage(PR);
+  ITEMS.forEach(function(x,i){if((S.sel[i]||[]).length){var r=gmScore(i,true);if(r){n++;pts+=r.add+r.bonus+r.cadd;news=news.concat(r.news)}}});
+  if(!n){toast('Tick some pieces first, then check.');return}
+  var ns=botStage(PR),m=['Checked '+n+' task'+(n>1?'s':'')+': '+(S.showKey?'answer key was open, so no points.':'+'+pts+' pts')];
+  if(ns>old)m.push(BOTS[ns].e+' Your bot grew into a '+BOTS[ns].n+'!');
+  queueToast(m.concat(news));prLocalSave();gmRender(true);if(window.clSync)clSync();
+}
+function gmScore(i,quiet){
+  var sel=S.sel[i]||[];
+  if(!sel.length){if(!quiet)toast('Tick some pieces first, then check.');return null}
   var sc=itemScore(i,sel),raw=Math.round((sc.score||0)*100),hints=(S.hint[i]||[]).length,key=S.showKey;
   var gained=key?0:Math.max(0,raw-10*hints);
   var t=PR.tasks[i]=PR.tasks[i]||{b:0,h:0,n:0};t.n++;t.h=Math.max(t.h||0,hints);
@@ -989,9 +998,11 @@ function gmCheck(){
   var news=[];BADGES.forEach(function(b){if(PR.badges.indexOf(b.id)<0&&b.t(PR)){PR.badges.push(b.id);news.push('🏅 New badge: '+b.n)}});
   var msgs=[(key?'Answer key was open, so no points this time.':(add+bonus+cadd>0?'+'+(add+bonus)+' pts'+(bonus?' (streak bonus +'+bonus+')':'')+(cadd?' · challenge +'+cadd:''):'No new points. Try for a better score.'))];
   var ns=botStage(PR);if(ns>oldStage)msgs.push(BOTS[ns].e+' Your bot grew into a '+BOTS[ns].n+'!');
+  if(quiet)return{add:add,bonus:bonus,cadd:cadd,news:news};
   queueToast(msgs.concat(news));
   G.fbIdx=i;fbShow(i,sel,raw,key);
   prLocalSave();gmRender(true);if(window.clSync)clSync();
+  return{add:add,bonus:bonus,cadd:cadd,news:news};
 }
 function fbShow(i,sel,raw,key){
   var it=ITEMS[i],rows=[],flaws=0;
@@ -1057,7 +1068,9 @@ function gmRender(force){
   var rows=entries(),all=rows.map(function(r){return r}).sort(function(a,b){return (b.pts+b.ch)-(a.pts+a.ch)}),rank=0;all.forEach(function(r,i){if(r.me)rank=i+1});
   var signedOut=CL.db&&!CL.joined&&!CL.trainer;
   var gate=$('hubGate');
-  if(signedOut){gate.hidden=false;gate.innerHTML='<b>Sign in to save your progress and join the leaderboard.</b><button type="button" class="primary" id="hubSign">Sign in</button>';$('hubSign').onclick=function(){$('classPanel').hidden=false;renderClass()}}
+  var unchecked=ITEMS.filter(function(x,i){return (S.sel[i]||[]).length&&!((PR.tasks[i]||{}).n>0)}).length;
+  if(unchecked){gate.hidden=false;gate.innerHTML='<b>'+unchecked+' labelled task'+(unchecked>1?'s are':' is')+' not checked yet.</b> Points are only given when you check your answers.<button type="button" class="primary" id="hubCheck">Check all my tasks</button>'+(signedOut?'<span class="note">Sign in first so your points are saved to your account.</span>':'');$('hubCheck').onclick=gmCheckAll}
+  else if(signedOut){gate.hidden=false;gate.innerHTML='<b>Sign in to save your progress and join the leaderboard.</b><button type="button" class="primary" id="hubSign">Sign in</button>';$('hubSign').onclick=function(){$('classPanel').hidden=false;renderClass()}}
   else if(!CL.db){gate.hidden=false;gate.innerHTML='<span>Practice progress is saved on this device only.</span>'}
   else gate.hidden=true;
   $('hubMe').innerHTML='<div class="me-top"><div class="me-av" aria-hidden="true">'+bot.e+'</div><div><b>'+esc(CL.joined?CL.name:'Your bot')+'</b><small>Bot stage: '+bot.n+(nx?' · next: '+nx.n:' · top stage')+'</small></div></div>'+
@@ -1070,13 +1083,13 @@ function gmRender(force){
   $('hubBoard').innerHTML=boardHtml(rows);
   $('hubPath').innerHTML=CATS.map(function(c){
     var cells=ITEMS.map(function(x,i){return x.cat===c?i:-1}).filter(function(i){return i>-1}).map(function(i){
-      var b=tb(PR,i),n=(PR.tasks[i]||{}).n||0,cl=b>=80?'ptask done':n?'ptask part':'ptask';
-      return '<button type="button" class="'+cl+'" data-i="'+i+'"><span class="t">Task '+(i+1)+(b>=100?' ★':b>=80?' ✓':'')+'</span><span class="s">'+(n?'Best '+b+' pts · '+n+' check'+(n>1?'s':''):'Not tried yet')+'</span><div class="gbar"><i style="width:'+b+'%"></i></div></button>'}).join('');
+      var b=tb(PR,i),n=(PR.tasks[i]||{}).n||0,lab=!n&&(S.sel[i]||[]).length>0,cl=b>=80?'ptask done':(n||lab)?'ptask part':'ptask';
+      return '<button type="button" class="'+cl+'" data-i="'+i+'"><span class="t">Task '+(i+1)+(b>=100?' ★':b>=80?' ✓':'')+'</span><span class="s">'+(n?'Best '+b+' pts · '+n+' check'+(n>1?'s':''):lab?'Labelled, not checked yet':'Not tried yet')+'</span><div class="gbar"><i style="width:'+b+'%"></i></div></button>'}).join('');
     return '<div class="parea"><b>'+c+'</b>'+cells+'</div>'}).join('');
   Array.prototype.forEach.call($('hubPath').querySelectorAll('.ptask'),function(b){b.onclick=function(){S.idx=+b.dataset.i;G.fbIdx=-1;renderItem();live();goTo(2)}});
   $('hubBadges').innerHTML=BADGES.map(function(b){var on=PR.badges.indexOf(b.id)>-1;return '<div class="bdg'+(on?'':' off')+'" title="'+esc(b.d)+'"><div class="e" aria-hidden="true">'+b.e+'</div><b>'+b.n+'</b><span>'+(on?'Earned':b.d)+'</span></div>'}).join('');
 }
-$('hintBtn').onclick=giveHint;$('checkBtn').onclick=gmCheck;
+$('hintBtn').onclick=giveHint;$('checkBtn').onclick=gmCheck;$('checkAllBtn').onclick=gmCheckAll;
 gmRender();
 
 // ---- trainer / presenter mode
