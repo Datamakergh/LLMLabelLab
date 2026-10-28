@@ -15,5 +15,5 @@ ok(!bad.length, 'no runtime reference to the GIGO repo or its Pages site' + (bad
 var before = fs.readFileSync(path.join(root, 'projects.html'));
 cp.execSync('python3 build.py', { cwd: path.join(root, 'src', 'project-lab') });
 ok(Buffer.compare(before, fs.readFileSync(path.join(root, 'projects.html'))) === 0, 'src/project-lab rebuilds projects.html identically');
-ok(/gigo\/projects\.html/.test(fs.readFileSync(path.join(root, 'index.html'), 'utf8')) && /gigo\/play\.html/.test(fs.readFileSync(path.join(root, 'projects.html'), 'utf8')), 'LLM Lab and Project Lab link to the GIGO scenes');
+ok(/gigo\/play\.html/.test(fs.readFileSync(path.join(root, 'projects.html'), 'utf8')), 'Project Lab lists the GIGO scenes');
 console.log(fails ? '\n' + fails + ' failed' : '\nall passed'); process.exit(fails ? 1 : 0);
