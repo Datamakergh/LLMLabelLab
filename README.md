@@ -24,3 +24,8 @@ Run `supabase/setup2.sql` after `setup.sql`. It creates 40 accounts, each with a
 ### Practice hub, points and challenges
 
 Run `supabase/setup3.sql` after the other two scripts. Trainees get a "Check my answer" button and hints in the lab, a Practice hub (bot growth stages, learning path, badges, streaks) and a leaderboard with teams of ten. The trainer can hide the leaderboard and start a timed challenge (3, 5 or 10 minutes) from the Class panel.
+
+
+## Project Lab (`projects.html`)
+
+Eight simulation projects, one page: bounding box (safety equipment, grazing, crop pests), polygon (coffee leaf disease), polyline (lane lines), semantic segmentation (skin lesions), keypoints (exercise coaching) and text sentiment/churn (coffee customers). Trainees label generated scenes, a simulated model learns only from those labels, and a system report shows the real-world consequences on new scenes. Progress is kept in the browser only.
