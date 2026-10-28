@@ -20,3 +20,7 @@ Without Supabase the page still works on its own; the Class button just stays hi
 ### Trainee accounts (Trainee-001 to Trainee-040)
 
 Run `supabase/setup2.sql` after `setup.sql`. It creates 40 accounts, each with a personal code. The trainer opens Class, enters the PIN, and presses "Login codes" to download or copy the list. Trainees sign in with their account and code; progress is saved per account and survives a refresh or a different device.
+
+### Practice hub, points and challenges
+
+Run `supabase/setup3.sql` after the other two scripts. Trainees get a "Check my answer" button and hints in the lab, a Practice hub (bot growth stages, learning path, badges, streaks) and a leaderboard with teams of ten. The trainer can hide the leaderboard and start a timed challenge (3, 5 or 10 minutes) from the Class panel.
