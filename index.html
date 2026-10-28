@@ -616,14 +616,17 @@ function renderClass(){
     var rows=CL.rows.slice().sort(function(a,c){return (c.help?1:0)-(a.help?1:0)||String(a.name).localeCompare(c.name)});
     var helps=rows.filter(function(x){return x.help}).length;
     var opts=ITEMS.map(function(it,i){return '<option value="'+i+'">Task '+(i+1)+' · '+it.cat+'</option>'}).join('');
-    b.innerHTML='<div class="cp-row"><b>'+rows.length+' trainee'+(rows.length===1?'':'s')+'</b>'+(helps?'<span class="badge2">'+helps+' need help</span>':'')+'</div>'+
+    var acct=CL.db.kind==='supa',signed=rows.filter(function(x){return x.joinedAt}).length;
+    if(acct)rows.sort(function(a,c){return (c.help?1:0)-(a.help?1:0)||((c.joinedAt?1:0)-(a.joinedAt?1:0))||String(a.name).localeCompare(c.name)});
+    b.innerHTML='<div class="cp-row"><b>'+(acct?signed+' of '+rows.length+' signed in':rows.length+' trainee'+(rows.length===1?'':'s'))+'</b>'+(helps?'<span class="badge2">'+helps+' need help</span>':'')+'</div>'+
     (rows.length?'<div style="overflow-x:auto"><table class="cp-tbl"><thead><tr><th>Name</th><th>Task</th><th>Done</th><th>Quality</th><th>Areas</th><th></th></tr></thead><tbody>'+rows.map(function(x){
-      var stale=Date.now()-(x.updated||0)>600000;
-      return '<tr class="'+(x.help?'help':'')+(stale?' stale':'')+'"><td><b>'+esc(x.name||'?')+'</b><br><span class="note">'+(x.updated?ago(x.updated)+' ago':'')+'</span></td><td>'+((x.idx||0)+1)+'</td><td>'+(x.touched||0)+'/10</td><td>'+(x.q||0)+'%</td><td><span class="ar">'+CATS.map(function(c){return '<i class="'+((x.areas||{})[c]||'')+'" title="'+c+'"></i>'}).join('')+'</span></td><td>'+(x.help?'<button type="button" data-clear="'+x.id+'" title="Clear the help request">✋ Clear</button>':'')+'</td></tr>'}).join('')+'</tbody></table></div>':'<p class="note">Nobody has joined yet. Share this page with your trainees and ask them to press Class, then Join.</p>')+
+      var stale=Date.now()-(x.updated||0)>600000||(acct&&!x.joinedAt);
+      return '<tr class="'+(x.help?'help':'')+(stale?' stale':'')+'"><td><b>'+esc(x.name||'?')+'</b><br><span class="note">'+(acct&&!x.joinedAt?'not signed in':x.updated?ago(x.updated)+' ago':'')+'</span></td><td>'+((x.idx||0)+1)+'</td><td>'+(x.touched||0)+'/10</td><td>'+(x.q||0)+'%</td><td><span class="ar">'+CATS.map(function(c){return '<i class="'+((x.areas||{})[c]||'')+'" title="'+c+'"></i>'}).join('')+'</span></td><td>'+(x.help?'<button type="button" data-clear="'+x.id+'" title="Clear the help request">✋ Clear</button>':'')+'</td></tr>'}).join('')+'</tbody></table></div>':'<p class="note">Nobody has joined yet. Share this page with your trainees and ask them to press Class, then Join.</p>')+
     '<hr style="border:0;border-top:1px solid var(--line);width:100%">'+
     '<div><b>Pause everyone</b><div class="cp-row" style="margin-top:6px"><input type="text" id="clMsg" placeholder="Message, for example: Eyes on the screen" value="'+esc(keepMsg!=null?keepMsg:(CL.state.msg||''))+'"><button type="button" id="clPause" class="'+(CL.state.paused?'primary':'')+'">'+(CL.state.paused?'Resume class':'Pause class')+'</button></div></div>'+
     '<div><b>Send everyone to a task</b><div class="cp-row" style="margin-top:6px"><select id="clFocus">'+opts+'</select><button type="button" id="clGo">Send</button></div></div>'+
-    '<div><button type="button" id="clWipe" class="ghost">'+(CL.confirm?'Click again to remove everyone':'Remove all trainees')+'</button></div>';
+    '<div class="cp-row"><button type="button" id="clWipe" class="ghost">'+(CL.confirm?'Click again to confirm':(acct?'Reset all progress':'Remove all trainees'))+'</button>'+(acct?'<button type="button" class="ghost" id="clCodes">'+(CL.codesOpen?'Hide login codes':'Login codes')+'</button>':'')+'</div>'+(acct&&CL.codesOpen?codesHtml():'');
+    if(acct){var cb=$('clCodes');if(cb)cb.onclick=function(){CL.codesOpen=!CL.codesOpen;if(CL.codesOpen)loadCodes();renderClass()};wireCodes()}
     var sel=$('clFocus');if(sel&&CL.state.focus!=null)sel.value=CL.state.focus;
     Array.prototype.forEach.call(b.querySelectorAll('[data-clear]'),function(x){x.onclick=function(){CL.db.clearHelp(x.dataset.clear).catch(function(){toast('Could not clear the request')})}});
     $('clPause').onclick=function(){writeState({paused:!CL.state.paused,msg:$('clMsg').value})};
@@ -631,11 +634,15 @@ function renderClass(){
     $('clWipe').onclick=function(){if(!CL.confirm){CL.confirm=true;renderClass();setTimeout(function(){CL.confirm=false;renderClass()},4000);return}CL.confirm=false;CL.db.wipe(CL.rows).catch(function(){toast('Could not remove trainees')})};
   }else{
     $('cpTitle').textContent='Join the class';
-    if(!CL.joined){
+    if(!CL.joined&&CL.db.kind==='supa'){
+      $('cpTitle').textContent='Sign in';
+      b.innerHTML='<p>Sign in with the account your trainer gave you, for example <b>Trainee-007</b> and your personal code. Your trainer sees your progress and scores, not your answers.</p><div class="cp-row"><input type="text" id="clUser" maxlength="20" placeholder="Account, e.g. Trainee-007" autocomplete="username" aria-label="Account"></div><div class="cp-row"><input type="text" id="clCode" maxlength="12" placeholder="Code" autocomplete="off" autocapitalize="off" aria-label="Code"><button type="button" class="primary" id="clJoin">Sign in</button></div>';
+      $('clJoin').onclick=clLogin;$('clCode').onkeydown=function(e){if(e.key==='Enter')clLogin()};
+    }else if(!CL.joined){
       b.innerHTML='<p>Type your name so your trainer can see your progress. They see how many tasks you have labelled and your scores, not your answers.</p><div class="cp-row"><input type="text" id="clName" maxlength="40" placeholder="Your name" aria-label="Your name"><button type="button" class="primary" id="clJoin">Join</button></div>';
       $('clJoin').onclick=clJoin;$('clName').onkeydown=function(e){if(e.key==='Enter')clJoin()};
     }else{
-      b.innerHTML='<p>You joined as <b>'+esc(CL.name)+'</b>. Your trainer can see your progress.</p><div class="cp-row"><button type="button" id="clHelp" aria-pressed="'+CL.help+'">'+(CL.help?'✋ Help requested. Tap to cancel':'✋ Ask the trainer')+'</button><button type="button" class="ghost" id="clLeave">Leave class</button></div>';
+      b.innerHTML='<p>You are signed in as <b>'+esc(CL.name)+'</b>. Your trainer can see your progress.</p><div class="cp-row"><button type="button" id="clHelp" aria-pressed="'+CL.help+'">'+(CL.help?'✋ Help requested. Tap to cancel':'✋ Ask the trainer')+'</button><button type="button" class="ghost" id="clLeave">'+(CL.db.kind==='supa'?'Sign out':'Leave class')+'</button></div>';
       $('clHelp').onclick=clToggleHelp;$('clLeave').onclick=clLeave;
     }
     if(CL.db&&CL.db.check){
@@ -657,9 +664,33 @@ async function clJoin(){
   try{await CL.me.set({name:nm,idx:S.idx,touched:r.touched,q:Math.round(r.q*100),score:Math.round(r.score*100),areas:areas,help:false,joinedAt:Date.now(),updated:Date.now()});CL.joined=true;CL.help=false;afterJoin()}
   catch(e){toast(CL.db.kind==='claude'?'Could not join. Ask your trainer to share the page with edit-and-contribute access.':'Could not join. Check your connection and try again.')}
 }
+function normUser(v){v=String(v||'').trim();var m=v.match(/^(?:trainee)?[\s-_]*(\d{1,3})$/i);return m?'Trainee-'+('00'+m[1]).slice(-3):v}
+async function clLogin(){
+  var u=normUser($('clUser').value),c=($('clCode').value||'').trim();
+  if(!u||!c){toast('Enter your account and code');return}
+  var t=null;try{t=await CL.db.login(u,c)}catch(e){toast('Could not reach the class server');return}
+  if(!t){toast('That account or code is not right');return}
+  CL.db.token=t;CL.db.user=u;CL.uid=u;CL.name=u;CL.joined=true;CL.help=false;CL.last='';
+  try{localStorage.setItem('ll_tok',t);localStorage.setItem('ll_acct',u)}catch(e){}
+  startTrainee();afterJoin();clSync();
+}
+async function loadCodes(){try{CL.codes=await CL.db.listCodes()}catch(e){CL.codes=[];toast('Could not load the codes')}renderClass()}
+function codesHtml(){
+  var c=CL.codes;if(!c)return '<p class="note">Loading…</p>';
+  return '<div class="cp-row"><button type="button" id="cdCsv">Download CSV</button><button type="button" class="ghost" id="cdCopy">Copy list</button></div><div style="overflow-x:auto;max-height:240px"><table class="cp-tbl"><thead><tr><th>Account</th><th>Code</th><th></th></tr></thead><tbody>'+c.map(function(r){return '<tr><td>'+esc(r.id)+'</td><td><code>'+esc(r.code)+'</code></td><td><button type="button" class="ghost" data-newcode="'+esc(r.id)+'">New code</button></td></tr>'}).join('')+'</tbody></table></div>';
+}
+function wireCodes(){
+  var c=CL.codes;if(!CL.codesOpen||!c)return;
+  var txt=function(){return 'Account,Code\n'+c.map(function(r){return r.id+','+r.code}).join('\n')};
+  $('cdCsv').onclick=function(){var a=document.createElement('a');a.href=URL.createObjectURL(new Blob([txt()],{type:'text/csv'}));a.download='trainee-codes.csv';document.body.appendChild(a);a.click();a.remove()};
+  $('cdCopy').onclick=function(){try{navigator.clipboard.writeText(txt().replace(/,/g,'\t'));toast('Copied')}catch(e){toast('Could not copy')}};
+  Array.prototype.forEach.call(document.querySelectorAll('[data-newcode]'),function(x){x.onclick=async function(){try{await CL.db.resetCode(x.dataset.newcode);toast('New code made for '+x.dataset.newcode);loadCodes()}catch(e){toast('Could not change the code')}}});
+}
 function afterJoin(){$('helpBtn').hidden=!CL.joined;$('classBtn').textContent=CL.joined?'Class ✓':'Class';renderClass()}
 async function clToggleHelp(){try{await CL.me.update({help:!CL.help,helpAt:Date.now()})}catch(e){toast('Could not send the request')}}
-async function clLeave(){try{await CL.me.delete()}catch(e){}CL.joined=false;CL.help=false;CL.last='';afterJoin()}
+async function clLeave(){try{await CL.me.delete()}catch(e){}CL.joined=false;CL.help=false;CL.last='';
+  if(CL.db.kind==='supa'){stopSub('meUnsub');CL.me=null;CL.db.token='';try{localStorage.removeItem('ll_tok');localStorage.removeItem('ll_acct')}catch(e){}}
+  afterJoin()}
 function applyState(){
   var st=CL.state;
   $('pauseOv').hidden=!(st.paused&&!CL.trainer);if(st.paused)$('pauseMsg').textContent=st.msg||'Eyes on the front for a moment.';
@@ -677,7 +708,7 @@ function pollSub(fetcher,ms,cb){
   return function(){on=false;clearInterval(h);document.removeEventListener('visibilitychange',tick)};
 }
 function supaDb(U,K){
-  var A={kind:'supa',pin:''};
+  var A={kind:'supa',pin:'',token:'',user:''};
   function rq(path,o){o=o||{};o.headers=Object.assign({apikey:K,Authorization:'Bearer '+K,'Content-Type':'application/json'},o.headers||{});
     return fetch(U+'/rest/v1/'+path,o).then(function(r){if(!r.ok)throw new Error('http '+r.status);return r.text()}).then(function(t){return t?JSON.parse(t):null})}
   function rpc(fn,body){return rq('rpc/'+fn,{method:'POST',body:JSON.stringify(body)})}
@@ -688,7 +719,11 @@ function supaDb(U,K){
   A.ping=function(){return rq('class_state?id=eq.1&select=id')};
   A.check=function(pin){return rpc('check_pin',{p_pin:String(pin||'')})};
   A.clearHelp=function(id){return rpc('clear_help',{p_pin:A.pin,p_id:id})};
-  A.wipe=function(){return rpc('wipe_all',{p_pin:A.pin})};
+  A.wipe=function(){return rpc('reset_all',{p_pin:A.pin})};
+  A.login=function(u,c){return rpc('login',{p_user:u,p_code:c})};
+  A.session=function(t){return rpc('my_session',{p_token:t})};
+  A.listCodes=function(){return rpc('list_codes',{p_pin:A.pin})};
+  A.resetCode=function(u){return rpc('reset_code',{p_pin:A.pin,p_user:u})};
   A.doc=function(path){
     var seg=path.split('/');
     if(path==='class/state')return{
@@ -698,9 +733,9 @@ function supaDb(U,K){
     var id=encodeURIComponent(seg[1]);
     return{
       onSnapshot:function(cb){return pollSub(function(){return rq('progress?id=eq.'+id+'&select=*')},5000,function(rows){var r=rows&&rows[0];cb({exists:!!r,data:function(){return r?fromRow(r):{}}})})},
-      set:function(d){return rq('progress',{method:'POST',headers:{Prefer:'resolution=merge-duplicates,return=minimal'},body:JSON.stringify([Object.assign({id:seg[1]},toRow(d))])})},
-      update:function(d){return rq('progress?id=eq.'+id,{method:'PATCH',headers:MIN,body:JSON.stringify(toRow(d))})},
-      delete:function(){return rq('progress?id=eq.'+id,{method:'DELETE',headers:MIN})}
+      set:function(){return Promise.reject(new Error('use login'))},
+      update:function(d){return rpc('save_progress',{p_token:A.token,p_idx:d.idx==null?null:d.idx,p_touched:d.touched==null?null:d.touched,p_q:d.q==null?null:d.q,p_score:d.score==null?null:d.score,p_areas:d.areas||null,p_help:d.help==null?null:d.help})},
+      delete:function(){return rpc('logout',{p_token:A.token})}
     };
   };
   A.collection=function(){return{onSnapshot:function(cb){return pollSub(function(){return rq('progress?select=*')},3000,function(rows){cb({docs:(rows||[]).map(function(r){return{id:r.id,data:function(){return fromRow(r)}}})})})}}};
@@ -728,7 +763,21 @@ function startTrainer(){
   CL.tick=setInterval(renderClass,15000);
   applyState();
 }
-function startTrainee(){
+async function startTrainee(){
+  if(CL.db.kind==='supa'){
+    var tok='',ac='';try{tok=CL.db.token||localStorage.getItem('ll_tok')||'';ac=localStorage.getItem('ll_acct')||''}catch(e){}
+    if(!CL.joined){
+      if(!tok)return;
+      var u=null;try{u=await CL.db.session(tok)}catch(e){return}
+      if(!u){try{localStorage.removeItem('ll_tok')}catch(e){}return}
+      CL.db.token=tok;CL.db.user=u;CL.uid=u;CL.name=u;CL.joined=true;
+    }
+    CL.me=CL.db.doc('progress/'+CL.uid);stopSub('meUnsub');
+    CL.meUnsub=CL.me.onSnapshot(function(sn){
+      if(sn.exists){var d=sn.data();CL.help=!!d.help;$('helpBtn').setAttribute('aria-pressed',CL.help);$('helpBtn').textContent=CL.help?'✋ Help requested':'✋ Ask the trainer'}
+    },function(){});
+    afterJoin();clSync();return;
+  }
   CL.me=CL.db.doc('progress/'+CL.uid);
   CL.meUnsub=CL.me.onSnapshot(function(sn){
     if(sn.exists){var d=sn.data();CL.joined=true;CL.name=d.name||CL.name;CL.help=!!d.help;$('helpBtn').setAttribute('aria-pressed',CL.help);$('helpBtn').textContent=CL.help?'✋ Help requested':'✋ Ask the trainer'}

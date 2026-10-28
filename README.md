@@ -16,3 +16,7 @@ Trainees join with a name, can tap "Ask the trainer", and the trainer sees every
 4. Deploy (Vercel imports this repo directly). The trainer presses Class, then "Trainer? Enter your PIN".
 
 Without Supabase the page still works on its own; the Class button just stays hidden.
+
+### Trainee accounts (Trainee-001 to Trainee-040)
+
+Run `supabase/setup2.sql` after `setup.sql`. It creates 40 accounts, each with a personal code. The trainer opens Class, enters the PIN, and presses "Login codes" to download or copy the list. Trainees sign in with their account and code; progress is saved per account and survives a refresh or a different device.
