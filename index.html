@@ -612,6 +612,7 @@ function renderClass(){
   var b=$('cpBody');if($('classPanel').hidden)return;
   if(CL.trainer){
     $('cpTitle').textContent='Class';
+    var keepMsg=$('clMsg')?$('clMsg').value:null;
     var rows=CL.rows.slice().sort(function(a,c){return (c.help?1:0)-(a.help?1:0)||String(a.name).localeCompare(c.name)});
     var helps=rows.filter(function(x){return x.help}).length;
     var opts=ITEMS.map(function(it,i){return '<option value="'+i+'">Task '+(i+1)+' · '+it.cat+'</option>'}).join('');
@@ -620,14 +621,14 @@ function renderClass(){
       var stale=Date.now()-(x.updated||0)>600000;
       return '<tr class="'+(x.help?'help':'')+(stale?' stale':'')+'"><td><b>'+esc(x.name||'?')+'</b><br><span class="note">'+(x.updated?ago(x.updated)+' ago':'')+'</span></td><td>'+((x.idx||0)+1)+'</td><td>'+(x.touched||0)+'/10</td><td>'+(x.q||0)+'%</td><td><span class="ar">'+CATS.map(function(c){return '<i class="'+((x.areas||{})[c]||'')+'" title="'+c+'"></i>'}).join('')+'</span></td><td>'+(x.help?'<button type="button" data-clear="'+x.id+'" title="Clear the help request">✋ Clear</button>':'')+'</td></tr>'}).join('')+'</tbody></table></div>':'<p class="note">Nobody has joined yet. Share this page with your trainees and ask them to press Class, then Join.</p>')+
     '<hr style="border:0;border-top:1px solid var(--line);width:100%">'+
-    '<div><b>Pause everyone</b><div class="cp-row" style="margin-top:6px"><input type="text" id="clMsg" placeholder="Message, for example: Eyes on the screen" value="'+esc(CL.state.msg||'')+'"><button type="button" id="clPause" class="'+(CL.state.paused?'primary':'')+'">'+(CL.state.paused?'Resume class':'Pause class')+'</button></div></div>'+
+    '<div><b>Pause everyone</b><div class="cp-row" style="margin-top:6px"><input type="text" id="clMsg" placeholder="Message, for example: Eyes on the screen" value="'+esc(keepMsg!=null?keepMsg:(CL.state.msg||''))+'"><button type="button" id="clPause" class="'+(CL.state.paused?'primary':'')+'">'+(CL.state.paused?'Resume class':'Pause class')+'</button></div></div>'+
     '<div><b>Send everyone to a task</b><div class="cp-row" style="margin-top:6px"><select id="clFocus">'+opts+'</select><button type="button" id="clGo">Send</button></div></div>'+
     '<div><button type="button" id="clWipe" class="ghost">'+(CL.confirm?'Click again to remove everyone':'Remove all trainees')+'</button></div>';
     var sel=$('clFocus');if(sel&&CL.state.focus!=null)sel.value=CL.state.focus;
-    Array.prototype.forEach.call(b.querySelectorAll('[data-clear]'),function(x){x.onclick=function(){CL.db.doc('progress/'+x.dataset.clear).update({help:false}).catch(function(){})}});
+    Array.prototype.forEach.call(b.querySelectorAll('[data-clear]'),function(x){x.onclick=function(){CL.db.clearHelp(x.dataset.clear).catch(function(){toast('Could not clear the request')})}});
     $('clPause').onclick=function(){writeState({paused:!CL.state.paused,msg:$('clMsg').value})};
     $('clGo').onclick=function(){writeState({focus:+$('clFocus').value,focusAt:Date.now()});toast('Sent everyone to task '+(+$('clFocus').value+1))};
-    $('clWipe').onclick=function(){if(!CL.confirm){CL.confirm=true;renderClass();setTimeout(function(){CL.confirm=false;renderClass()},4000);return}CL.confirm=false;CL.rows.forEach(function(x){CL.db.doc('progress/'+x.id).delete().catch(function(){})})};
+    $('clWipe').onclick=function(){if(!CL.confirm){CL.confirm=true;renderClass();setTimeout(function(){CL.confirm=false;renderClass()},4000);return}CL.confirm=false;CL.db.wipe(CL.rows).catch(function(){toast('Could not remove trainees')})};
   }else{
     $('cpTitle').textContent='Join the class';
     if(!CL.joined){
@@ -636,6 +637,12 @@ function renderClass(){
     }else{
       b.innerHTML='<p>You joined as <b>'+esc(CL.name)+'</b>. Your trainer can see your progress.</p><div class="cp-row"><button type="button" id="clHelp" aria-pressed="'+CL.help+'">'+(CL.help?'✋ Help requested. Tap to cancel':'✋ Ask the trainer')+'</button><button type="button" class="ghost" id="clLeave">Leave class</button></div>';
       $('clHelp').onclick=clToggleHelp;$('clLeave').onclick=clLeave;
+    }
+    if(CL.db&&CL.db.check){
+      if(CL.pinOpen){b.insertAdjacentHTML('beforeend','<div class="cp-row"><input type="password" id="clPin" placeholder="Trainer PIN" autocomplete="off" aria-label="Trainer PIN"><button type="button" id="clUnlock">Unlock</button></div>');
+        $('clUnlock').onclick=function(){unlock($('clPin').value)};$('clPin').onkeydown=function(e){if(e.key==='Enter')unlock($('clPin').value)};}
+      else{b.insertAdjacentHTML('beforeend','<p class="note"><a href="#" id="clTr">Trainer? Enter your PIN</a></p>');
+        $('clTr').onclick=function(e){e.preventDefault();CL.pinOpen=true;renderClass();var i=$('clPin');if(i)i.focus()}}
     }
   }
 }
@@ -648,7 +655,7 @@ async function clJoin(){
   CL.name=nm;CL.me=CL.db.doc('progress/'+CL.uid);
   var r=evaluate(false),areas={};CATS.forEach(function(c){areas[c]=r.cat[c].s});
   try{await CL.me.set({name:nm,idx:S.idx,touched:r.touched,q:Math.round(r.q*100),score:Math.round(r.score*100),areas:areas,help:false,joinedAt:Date.now(),updated:Date.now()});CL.joined=true;CL.help=false;afterJoin()}
-  catch(e){toast('Could not join. Ask your trainer to share the page with edit-and-contribute access.')}
+  catch(e){toast(CL.db.kind==='claude'?'Could not join. Ask your trainer to share the page with edit-and-contribute access.':'Could not join. Check your connection and try again.')}
 }
 function afterJoin(){$('helpBtn').hidden=!CL.joined;$('classBtn').textContent=CL.joined?'Class ✓':'Class';renderClass()}
 async function clToggleHelp(){try{await CL.me.update({help:!CL.help,helpAt:Date.now()})}catch(e){toast('Could not send the request')}}
@@ -658,14 +665,100 @@ function applyState(){
   $('pauseOv').hidden=!(st.paused&&!CL.trainer);if(st.paused)$('pauseMsg').textContent=st.msg||'Eyes on the front for a moment.';
   if(CL.trainer)renderClass();
 }
+var SUPA={url:'https://kirxvphajoemgarbanqt.supabase.co',key:'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imtpcnh2cGhham9lbWdhcmJhbnF0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTMxMzk1ODksImV4cCI6MjEwODcxNTU4OX0.KEs1LaFTrFPZm1LyI6UAnIj11D1ofQsSboWo0j8Aud0'};
+function pollSub(fetcher,ms,cb){
+  var on=true,busy=false,last=null;
+  function tick(){
+    if(!on||busy||document.hidden)return;busy=true;
+    fetcher().then(function(v){var j=JSON.stringify(v);if(j!==last){last=j;cb(v)}}).catch(function(){}).then(function(){busy=false});
+  }
+  tick();var h=setInterval(tick,ms);
+  document.addEventListener('visibilitychange',tick);
+  return function(){on=false;clearInterval(h);document.removeEventListener('visibilitychange',tick)};
+}
+function supaDb(U,K){
+  var A={kind:'supa',pin:''};
+  function rq(path,o){o=o||{};o.headers=Object.assign({apikey:K,Authorization:'Bearer '+K,'Content-Type':'application/json'},o.headers||{});
+    return fetch(U+'/rest/v1/'+path,o).then(function(r){if(!r.ok)throw new Error('http '+r.status);return r.text()}).then(function(t){return t?JSON.parse(t):null})}
+  function rpc(fn,body){return rq('rpc/'+fn,{method:'POST',body:JSON.stringify(body)})}
+  var MAP={joinedAt:'joined_at',helpAt:'help_at'},BACK={joined_at:'joinedAt',help_at:'helpAt'};
+  function toRow(d){var o={};for(var k in d)o[MAP[k]||k]=d[k];return o}
+  function fromRow(r){var o={};for(var k in r)o[BACK[k]||k]=r[k];return o}
+  var MIN={Prefer:'return=minimal'};
+  A.ping=function(){return rq('class_state?id=eq.1&select=id')};
+  A.check=function(pin){return rpc('check_pin',{p_pin:String(pin||'')})};
+  A.clearHelp=function(id){return rpc('clear_help',{p_pin:A.pin,p_id:id})};
+  A.wipe=function(){return rpc('wipe_all',{p_pin:A.pin})};
+  A.doc=function(path){
+    var seg=path.split('/');
+    if(path==='class/state')return{
+      onSnapshot:function(cb){return pollSub(function(){return rq('class_state?id=eq.1&select=*')},3000,function(rows){var r=rows&&rows[0];cb({exists:!!r,data:function(){return r?{paused:r.paused,msg:r.msg,focus:r.focus,focusAt:r.focus_at}:{}}})})},
+      set:function(d){return rpc('set_class_state',{p_pin:A.pin,p_paused:!!d.paused,p_msg:d.msg||'',p_focus:d.focus==null?null:d.focus,p_focus_at:d.focusAt||0})}
+    };
+    var id=encodeURIComponent(seg[1]);
+    return{
+      onSnapshot:function(cb){return pollSub(function(){return rq('progress?id=eq.'+id+'&select=*')},5000,function(rows){var r=rows&&rows[0];cb({exists:!!r,data:function(){return r?fromRow(r):{}}})})},
+      set:function(d){return rq('progress',{method:'POST',headers:{Prefer:'resolution=merge-duplicates,return=minimal'},body:JSON.stringify([Object.assign({id:seg[1]},toRow(d))])})},
+      update:function(d){return rq('progress?id=eq.'+id,{method:'PATCH',headers:MIN,body:JSON.stringify(toRow(d))})},
+      delete:function(){return rq('progress?id=eq.'+id,{method:'DELETE',headers:MIN})}
+    };
+  };
+  A.collection=function(){return{onSnapshot:function(cb){return pollSub(function(){return rq('progress?select=*')},3000,function(rows){cb({docs:(rows||[]).map(function(r){return{id:r.id,data:function(){return fromRow(r)}}})})})}}};
+  return A;
+}
+function wrapClaude(db){
+  return{kind:'claude',doc:function(p){return db.doc(p)},collection:function(p){return db.collection(p)},
+    clearHelp:function(id){return db.doc('progress/'+id).update({help:false})},
+    wipe:function(rows){return Promise.all(rows.map(function(x){return db.doc('progress/'+x.id).delete()}))}};
+}
+function localId(){
+  try{var v=localStorage.getItem('ll_uid');if(!v){v='t'+Math.random().toString(36).slice(2,10)+Date.now().toString(36);localStorage.setItem('ll_uid',v)}return v}
+  catch(e){return 't'+Math.random().toString(36).slice(2,12)}
+}
+function stopSub(k){if(CL[k]){try{if(typeof CL[k]==='function')CL[k]()}catch(e){}CL[k]=null}}
+function startTrainer(){
+  CL.trainer=true;$('helpBtn').hidden=true;stopSub('meUnsub');stopSub('allUnsub');clearInterval(CL.tick);
+  $('classBtn').textContent='Class';
+  CL.allUnsub=CL.db.collection('progress').onSnapshot(function(sn){
+    CL.rows=sn.docs.map(function(d){var x=d.data()||{};x.id=d.id;return x});
+    var h=CL.rows.filter(function(x){return x.help}).length;
+    $('classBtn').innerHTML='Class'+(h?'<span class="badge2">'+h+'</span>':'');
+    renderClass();
+  },function(){});
+  CL.tick=setInterval(renderClass,15000);
+  applyState();
+}
+function startTrainee(){
+  CL.me=CL.db.doc('progress/'+CL.uid);
+  CL.meUnsub=CL.me.onSnapshot(function(sn){
+    if(sn.exists){var d=sn.data();CL.joined=true;CL.name=d.name||CL.name;CL.help=!!d.help;$('helpBtn').setAttribute('aria-pressed',CL.help);$('helpBtn').textContent=CL.help?'✋ Help requested':'✋ Ask the trainer'}
+    else{CL.joined=false}
+    afterJoin();
+  },function(){});
+}
+async function unlock(pin){
+  pin=String(pin||'').trim();if(!pin)return;
+  var ok=false;
+  try{ok=await CL.db.check(pin)}catch(e){toast('Could not reach the class server');return}
+  if(!ok){toast('That PIN is not right');return}
+  CL.db.pin=pin;try{sessionStorage.setItem('ll_pin',pin)}catch(e){}
+  if(CL.joined&&CL.me){try{await CL.me.delete()}catch(e){}CL.joined=false}
+  CL.pinOpen=false;startTrainer();renderClass();toast('Trainer controls unlocked');
+}
 (async function(){
+  var db=null;
   try{
-    if(!window.claude||!window.claude.use)return;
-    CL.user=await window.claude.use('user');CL.db=await window.claude.use('db');
-    if(!CL.user||!CL.db)return;
-    CL.uid=await CL.user.id();CL.trainer=!!CL.user.canEdit();
-    if(!CL.uid)return;
-  }catch(e){return}
+    if(window.claude&&window.claude.use){
+      var u=await window.claude.use('user'),d=await window.claude.use('db');
+      if(u&&d){var id=await u.id();if(id){CL.uid=id;CL.trainer=!!u.canEdit();db=wrapClaude(d)}}
+    }
+  }catch(e){db=null}
+  if(!db&&SUPA.url&&SUPA.key){
+    var sb=supaDb(SUPA.url,SUPA.key);
+    try{await sb.ping();db=sb;CL.uid=localId();CL.trainer=false}catch(e){return}
+  }
+  if(!db)return;
+  CL.db=db;
   $('classBtn').hidden=false;
   $('classBtn').onclick=function(){var p=$('classPanel');p.hidden=!p.hidden;renderClass()};
   $('cpClose').onclick=function(){$('classPanel').hidden=true};
@@ -676,22 +769,10 @@ function applyState(){
     else if(CL.state.focusAt>CL.lastFocus&&CL.state.focus!=null&&!CL.trainer){CL.lastFocus=CL.state.focusAt;S.idx=CL.state.focus;renderItem();live();goTo(2);toast('Your trainer moved you to task '+(S.idx+1))}
     applyState();
   },function(){});
-  if(CL.trainer){
-    $('classBtn').textContent='Class';
-    CL.db.collection('progress').onSnapshot(function(sn){
-      CL.rows=sn.docs.map(function(d){var x=d.data()||{};x.id=d.id;return x});
-      var h=CL.rows.filter(function(x){return x.help}).length;
-      $('classBtn').innerHTML='Class'+(h?'<span class="badge2">'+h+'</span>':'');
-      renderClass();
-    },function(){});
-    setInterval(renderClass,15000);
-  }else{
-    CL.me=CL.db.doc('progress/'+CL.uid);
-    CL.me.onSnapshot(function(sn){
-      if(sn.exists){var d=sn.data();CL.joined=true;CL.name=d.name||CL.name;CL.help=!!d.help;$('helpBtn').setAttribute('aria-pressed',CL.help);$('helpBtn').textContent=CL.help?'✋ Help requested':'✋ Ask the trainer'}
-      else{CL.joined=false}
-      afterJoin();
-    },function(){});
+  if(CL.trainer)startTrainer();
+  else{
+    startTrainee();
+    if(db.check){var sp='';try{sp=sessionStorage.getItem('ll_pin')||''}catch(e){} if(sp)unlock(sp)}
   }
 })();
 
