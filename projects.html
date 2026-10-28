@@ -2866,11 +2866,9 @@ function plStartDrive(o){
   PL.hud=function(){var c={good:0,late:0,missed:0};Object.keys(PL.shown||{}).forEach(function(k){c[PL.shown[k]]++});return '<span class="k ok">'+c.good+' detected</span><span class="k warn">'+c.late+' weak</span><span class="k bad">'+c.missed+' missed</span>'};
   PL.reset=function(){
     G.GROUND_TRUTH=o.sc.gz;
-    box.innerHTML='<div class="drv"><div class="drvimg"><svg id="sv" class="cv" viewBox="0 0 640 400" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Labelled road scene"><g class="art">'+o.sc.art+'</g><g class="ov" id="drvov"></g></svg>'
-      +'<div class="plhud"><span class="rec"><i></i>REC</span><span class="cam">FRONT CAMERA</span><span class="clk" id="plclk">0:00</span></div><div class="plcnt" id="plcnt"></div></div>'
-      +'<div class="drvcap">Top-down view of the same street. The car drives past the objects you labelled.</div><canvas id="drvcv" class="cv drvcv" width="800" height="500" aria-label="Driving simulation"></canvas></div><div class="pltoasts" id="pltoasts" hidden></div><div class="plban" id="plban" hidden></div>';
+    box.innerHTML='<div class="drv"><div class="drvimg"><canvas id="drvcv" class="cv drvcv" width="800" height="500" aria-label="Driving simulation"></canvas>'
+      +'<div class="plcnt" id="plcnt" style="bottom:22px"></div></div></div><div class="pltoasts" id="pltoasts" hidden></div><div class="plban" id="plban" hidden></div>';
     PL.sim=G.Sim.create(d.det);PL.simT=0;PL.view=new G.SimView($('drvcv'));PL.shown={};PL.i=0;PL.ri=0;PL.cnt={};$('report').innerHTML='';
-    var ov=$('drvov'),h='';if(ST.sim.truth)o.sc.gt.forEach(function(g){h+=shapeSvg(g,'#475569',{dash:1,nofill:1,w:1.6})});ov.innerHTML=h+'<g id="drvdet"></g>';
   };
   PL.last=performance.now();
   plSeek(o.mode==='static'?PL.dur:keepT);plCtl();
@@ -2881,15 +2879,12 @@ function plDriveAdvance(){
   var G=window.GIGO,d=PL.D,s=PL.sim,target=Math.min(PL.t,d.T+.5),k=0;
   G.GROUND_TRUTH=PL.sc.gz;
   while(PL.simT+1/60<=target&&k++<4000){G.Sim.step(s,1/60);PL.simT+=1/60}
-  var f=G.Sim.front(s),dg=$('drvdet');
-  if(dg)s.actors.forEach(function(a){
+  var f=G.Sim.front(s);
+  s.actors.forEach(function(a){
     if(PL.shown[a.id]||(a.type==='oncoming'&&!a.spawned))return;
     var det=d.det[a.id]||{mode:'missed'},dist=G.Sim.refX(a)-f,lim=det.mode==='missed'?(a.critical?G.Sim.P.range.late:90):G.Sim.P.range.good;
     if(dist>lim||dist<-30)return;
-    var g=PL.sc.gz.filter(function(z){return z.id===a.id})[0],gt=PL.sc.gt.filter(function(z){return z.gid===a.id})[0],r=d.ev.byId[a.id],pb=r&&r.boxId!=null?PL.ann[r.boxId]:null,bx=pb||gt;
-    var mode=det.wrong?'missed':det.mode,col=det.mode==='good'?'#16a34a':det.mode==='late'?'#d97706':'#dc2626',lab=det.mode==='good'?shortName(DGI[g.cls])+' '+Math.round(det.conf*100)+'%':det.mode==='late'?shortName(DGI[g.cls])+' (weak)':det.wrong?'Misread: '+shortName(det.label&&DGI[det.label])+'?':'✗ not detected';
-    PL.shown[a.id]=mode;
-    dg.insertAdjacentHTML('beforeend','<g class="plit">'+shapeSvg(bx,col,{label:lab,dash:det.mode==='missed',w:3})+'</g>');
+    PL.shown[a.id]=det.wrong?'missed':det.mode;
   });
   PL.view.draw(s,d.det);
 }
