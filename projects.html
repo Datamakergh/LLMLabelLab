@@ -2901,7 +2901,8 @@ function sSave(){if(!P)return;try{sessionStorage.setItem('llp2_'+P.id,JSON.strin
 function sLoad(){try{var v=JSON.parse(sessionStorage.getItem('llp2_'+P.id)||'null');if(v&&v.ann&&v.ann.length===P.nTrain){ST.ann=v.ann.map(function(a){return P.type==='seg'?Int8Array.from(a):a});ST.runs=v.runs||[];ST.idx=v.idx||0}}catch(e){}}
 function toast(m){var t=$('toast');t.textContent=m;t.hidden=false;clearTimeout(toast.h);toast.h=setTimeout(function(){t.hidden=true},3000)}
 // ---------- landing
-var GSC=[{id:'warehouse',icon:'🦺',tag:'Bounding box · GIGO scene',name:'Warehouse PPE gate',blurb:'Check workers for hard hats, goggles, vests and boots at a distribution centre.'},
+var GSC=[{id:'road',icon:'🚦',tag:'Bounding box · GIGO scene',name:'Self-driving car: road safety',blurb:'Box cars, people, cyclists, lights and signs, then run the 2D or 3D drive and see the near misses and crashes.'},
+ {id:'warehouse',icon:'🦺',tag:'Bounding box · GIGO scene',name:'Warehouse PPE gate',blurb:'Check workers for hard hats, goggles, vests and boots at a distribution centre.'},
  {id:'drone',icon:'🦁',tag:'Bounding box · GIGO scene',name:'Drone wildlife census',blurb:'Count animals from the air over the Maasai Mara and flag poachers and predators.'},
  {id:'crop',icon:'🌽',tag:'Bounding box · GIGO scene',name:'Maize disease scout',blurb:'Diagnose maize leaves on a Kenyan smallholder farm so the right plants get treated.'},
  {id:'llm',icon:'💬',tag:'Text labelling · GIGO scene',name:'LLM answer check',blurb:'Pick the right answer to each question. The chatbot learns whatever you pick.'}];
