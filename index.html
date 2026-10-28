@@ -273,6 +273,19 @@ body.present .helpbtn{display:none}
 .pause{position:fixed;inset:0;z-index:80;background:rgba(15,23,42,.88);display:grid;place-items:center;padding:20px}
 .pause-card{background:#fff;border-radius:18px;padding:36px 40px;max-width:520px;text-align:center}
 .pause-card h2{font-size:26px;margin-bottom:8px}.pause-card p{font-size:18px;color:#334155}
+.welcome{position:fixed;inset:0;z-index:90;background:rgba(15,23,42,.72);display:grid;place-items:center;padding:20px}
+.wl-card{background:#fff;border-radius:20px;padding:34px 34px 28px;max-width:460px;width:100%;text-align:center;box-shadow:0 24px 60px rgba(15,23,42,.35);position:relative;overflow:hidden;animation:wlIn .45s cubic-bezier(.2,1.2,.4,1)}
+.wl-card::before{content:"";position:absolute;left:0;right:0;top:0;height:6px;background:linear-gradient(90deg,#2563eb,#16a34a,#d97706,#dc2626)}
+.wl-bot{font-size:52px;line-height:1;animation:wlWave 1.2s ease-in-out 2}
+.wl-card h2{font-size:26px;margin:10px 0 6px}
+.wl-card p{font-size:16px;color:#334155;margin:0 0 6px}
+.wl-card .wl-sub{font-size:14px;color:#64748b;margin-bottom:18px}
+.wl-conf{position:absolute;inset:0;pointer-events:none}
+.wl-conf i{position:absolute;top:-10px;width:8px;height:12px;border-radius:2px;animation:wlFall 1.6s ease-in forwards}
+@keyframes wlIn{from{transform:scale(.8) translateY(20px);opacity:0}to{transform:none;opacity:1}}
+@keyframes wlWave{0%,100%{transform:rotate(0)}25%{transform:rotate(-14deg)}75%{transform:rotate(14deg)}}
+@keyframes wlFall{to{transform:translateY(420px) rotate(540deg);opacity:0}}
+@media (prefers-reduced-motion:reduce){.wl-card,.wl-bot,.wl-conf i{animation:none}}
 .toast{position:fixed;left:50%;top:76px;transform:translateX(-50%);background:#0f172a;color:#fff;padding:10px 18px;border-radius:99px;z-index:70;font-weight:600;box-shadow:var(--shadow)}
 [hidden]{display:none!important}
 @media(max-width:1000px){.panels,.results{grid-template-columns:1fr}.card.wide{grid-column:auto}.stepper{margin:0}}
@@ -374,6 +387,7 @@ body.present .helpbtn{display:none}
   <div class="cp-body" id="cpBody"></div>
 </aside>
 <button type="button" class="helpbtn" id="helpBtn" hidden aria-pressed="false">✋ Ask the trainer</button>
+<div class="welcome" id="welcome" hidden role="dialog" aria-modal="true" aria-labelledby="wlTitle"><div class="wl-card"><div class="wl-conf" id="wlConf" aria-hidden="true"></div><div class="wl-bot" aria-hidden="true">🤖</div><h2 id="wlTitle">You're in!</h2><p id="wlMsg"></p><p class="wl-sub" id="wlSub"></p><button type="button" class="primary" id="wlGo">Let's train the bot →</button></div></div>
 <div class="pause" id="pauseOv" hidden role="alertdialog" aria-live="assertive"><div class="pause-card"><h2>Paused by your trainer</h2><p id="pauseMsg">Eyes on the front for a moment.</p></div></div>
 <div class="toast" id="toast" hidden role="status"></div>
 <div class="pbar" id="pbar" hidden role="region" aria-label="Trainer controls">
@@ -672,7 +686,7 @@ async function clLogin(){
   if(!t){toast('That account or code is not right');return}
   CL.db.token=t;CL.db.user=u;CL.uid=u;CL.name=u;CL.joined=true;CL.help=false;CL.last='';
   try{localStorage.setItem('ll_tok',t);localStorage.setItem('ll_acct',u)}catch(e){}
-  startTrainee();afterJoin();clSync();
+  startTrainee();afterJoin();clSync();showWelcome();
 }
 async function loadCodes(){try{CL.codes=await CL.db.listCodes()}catch(e){CL.codes=[];toast('Could not load the codes')}renderClass()}
 function codesHtml(){
@@ -686,6 +700,27 @@ function wireCodes(){
   $('cdCopy').onclick=function(){try{navigator.clipboard.writeText(txt().replace(/,/g,'\t'));toast('Copied')}catch(e){toast('Could not copy')}};
   Array.prototype.forEach.call(document.querySelectorAll('[data-newcode]'),function(x){x.onclick=async function(){try{await CL.db.resetCode(x.dataset.newcode);toast('New code made for '+x.dataset.newcode);loadCodes()}catch(e){toast('Could not change the code')}}});
 }
+var WELCOME=[
+  ['The bot has been waiting for you.','It only knows what you teach it. No pressure.'],
+  ['Welcome to the lab, {n}!','Good labels make a smart bot. Sloppy ones make a very confident liar.'],
+  ['Signed in. The bot just sat up straighter.','Ten tasks, one tiny brain, and you are the teacher.'],
+  ['Access granted, {n}.','Your mission: teach a bot to answer well, and spot the traps.'],
+  ['Hello, {n}! The bot knows nothing yet.','That is where you come in. Pick the good pieces, skip the bad ones.']
+];
+function showWelcome(){
+  var w=WELCOME[Math.floor(Math.random()*WELCOME.length)],n=(CL.name||'trainee').replace(/-/g,'\u2011');
+  $('wlTitle').textContent='You\u2019re in, '+n+'!';
+  $('wlMsg').textContent=w[0].replace('{n}',n);$('wlSub').textContent=w[1].replace('{n}',n);
+  var cf=$('wlConf');cf.innerHTML='';
+  if(!(window.matchMedia&&matchMedia('(prefers-reduced-motion:reduce)').matches)){
+    var cols=['#2563eb','#16a34a','#d97706','#dc2626','#7c3aed'];
+    for(var i=0;i<36;i++){var e=document.createElement('i');e.style.left=Math.random()*100+'%';e.style.background=cols[i%5];e.style.animationDelay=(Math.random()*.5)+'s';e.style.animationDuration=(1.2+Math.random()*.9)+'s';cf.appendChild(e)}
+  }
+  $('welcome').hidden=false;$('wlGo').focus();
+}
+function closeWelcome(){$('welcome').hidden=true;$('classPanel').hidden=true;goTo(2)}
+$('wlGo').onclick=closeWelcome;
+document.addEventListener('keydown',function(e){if(e.key==='Escape'&&!$('welcome').hidden)closeWelcome()});
 function afterJoin(){$('helpBtn').hidden=!CL.joined;$('classBtn').textContent=CL.joined?'Class ✓':'Class';renderClass()}
 async function clToggleHelp(){try{await CL.me.update({help:!CL.help,helpAt:Date.now()})}catch(e){toast('Could not send the request')}}
 async function clLeave(){try{await CL.me.delete()}catch(e){}CL.joined=false;CL.help=false;CL.last='';
