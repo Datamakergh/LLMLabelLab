@@ -82,16 +82,9 @@ PROJECTS.push({
   nTrain:4,nTest:2,gen:gGen('crop',cropObjects),
   tips:{healthy:'Box healthy leaves too.',fallarmyworm:'Holes and a caterpillar.',lethalnecrosis:'Yellow edges, dry tissue.',greyleafspot:'Grey stripes.',maizestreak:'Thin yellow lines.'},
   reportTitle:'What the field test showed'});
-PROJECTS.push({
-  id:'g_road',scn:'road',name:'Self-driving car: road safety',icon:'🚦',type:'box',tag:'Bounding box · GIGO scene',
-  blurb:'Box cars, people, cyclists, lights and signs on a city street, then watch the car drive it in 2D or 3D.',
-  client:'An autonomous-driving team trains a camera model for a city street. The car brakes only for what it has learned to see.',
-  source:'https://datamaker.io/ko/blog/articles/review/occluded-object-recognition',
-  classes:gClasses('road',{'Car':'A car on the road, parked or driving. Box the whole car.','Pedestrian':'A person on foot: on the crosswalk, the pavement or near the kerb.','Bicycle':'A bicycle with its rider. Box both together.','Traffic Light':'The light housing on the pole.','Traffic Sign':'A road sign plate: speed limit or school zone.'}),
-  guide:['Box every car, person, cyclist, traffic light and sign.','Box each object tight.','Box a cyclist together with the bicycle.','Pick the right class.'],
-  traps:['A child near the kerb is small but still a pedestrian.','A parked car still needs a box.','A cyclist is a bicycle, not a pedestrian.'],
-  gigo:'If you skip a pedestrian or a cyclist, the car does not brake. If you skip the traffic light, it runs the red. A loose box makes it brake late.',
-  nTrain:4,nTest:2,gen:gGen('road',function(i,t){return roadObjects(i,t,31)}),
-  tips:{car:'Box every car, parked ones too.',pedestrian:'Never skip a person.',bicycle:'Include the rider.',trafficlight:'Box the housing.',trafficsign:'Box the sign plate.'},
-  reportTitle:'What the car did on this street'});
+// the road project carries the self-driving car project's classes, guide and all nine pictures
+(function(){var d=PROJECTS.filter(function(p){return p.id==='drive'})[0],g={};for(var k in d)g[k]=d[k];
+  g.id='g_road';g.scn='road';g.name='Self-driving car: road safety';g.tag='Bounding box · GIGO scene';
+  g.blurb='Box cars, people, cyclists, lights and signs on a city street, then watch the car drive it in 2D or 3D.';
+  g.source='https://datamaker.io/ko/blog/articles/review/occluded-object-recognition';PROJECTS.push(g)})();
 (function(){PROJECTS.forEach(function(p){if(p.scn)p.cmap=gMap(p.scn)});var d=PROJECTS.filter(function(p){return p.id==='drive'})[0];if(d){d.scn='road';d.cmap=DGC}})();
