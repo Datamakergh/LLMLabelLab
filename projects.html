@@ -5168,7 +5168,8 @@ function toast(m){var t=$('toast');t.textContent=m;t.hidden=false;clearTimeout(t
 var GSC=[{id:'llm',icon:'💬',tag:'Text labelling · GIGO scene',name:'LLM answer check',blurb:'Pick the right answer to each question. The chatbot learns whatever you pick.'}];
 function renderList(){
   var best={};try{best=JSON.parse(localStorage.getItem('llp_best')||'{}')}catch(e){}
-  $('grid').innerHTML=PROJECTS.filter(function(p){return !p.hidden}).map(function(p){var b=best[p.id];
+  var llm='<a class="pcard" href="index.html"><span class="pc-ic" aria-hidden="true">🧠</span><span class="pc-tag">LLM response labelling</span><h3>LLM Label Lab</h3><p>Rate and label AI answers for accuracy, tone and safety, with the full practice hub, points and leaderboard.</p><span class="pc-foot"><span>Class and practice mode</span><span class="pc-go">Open →</span></span></a>';
+  $('grid').innerHTML=llm+PROJECTS.filter(function(p){return !p.hidden}).map(function(p){var b=best[p.id];
     return '<a class="pcard" href="#/'+p.id+'"><span class="pc-ic" aria-hidden="true">'+p.icon+'</span><span class="pc-tag">'+p.tag+'</span><h3>'+p.name+'</h3><p>'+p.blurb+'</p><span class="pc-foot">'+(b!=null?'<b>Best '+b+'%</b> on new scenes':'Not started')+'<span class="pc-go">Start →</span></span></a>'}).join('')+GSC.map(function(g){return '<a class="pcard" href="#/g/'+g.id+'"><span class="pc-ic" aria-hidden="true">'+g.icon+'</span><span class="pc-tag">'+g.tag+'</span><h3>'+g.name+'</h3><p>'+g.blurb+'</p><span class="pc-foot"><span>Label, run, see the outcome</span><span class="pc-go">Start →</span></span></a>'}).join('');
 }
 function route(){
