@@ -12,13 +12,14 @@ window.GIGO = window.GIGO || {};
     { id: 'Giraffe', color: '#ca8a04', key: '3' }, { id: 'Wildebeest', color: '#7c3aed', key: '4' },
     { id: 'Cattle', color: '#16a34a', key: '5' }, { id: 'Goat', color: '#a16207', key: '6' },
     { id: 'Buffalo', color: '#0f766e', key: '7' }, { id: 'Rhino', color: '#db2777', key: '8' },
-    { id: 'Lion', color: '#ea580c', key: '9' }, { id: 'Poacher', color: '#dc2626', key: '0' },
+    { id: 'Lion', color: '#ea580c', key: '9' }, { id: 'Hyena', color: '#92400e', key: '0' }, { id: 'Leopard', color: '#f59e0b', key: 'l' }, { id: 'Poacher', color: '#dc2626', key: 'p' },
     { id: 'Scarecrow', color: '#b45309', key: '-' }
   ];
   var s2 = {};
   for (var k in base) s2[k] = base[k];
   s2.id = 'drone2'; s2.classes = classes; s2.groundTruth = PICS[0].gt; s2.pic = 0;
-  s2.species = ['Elephant', 'Zebra', 'Giraffe', 'Wildebeest', 'Cattle', 'Goat', 'Buffalo', 'Rhino', 'Lion'];
+  s2.species = ['Elephant', 'Zebra', 'Giraffe', 'Wildebeest', 'Cattle', 'Goat', 'Buffalo', 'Rhino', 'Predator'];
+  s2.group = { Lion: 'Predator', Hyena: 'Predator', Leopard: 'Predator' };
   s2.task = 'Box every animal and person, then run the drone survey.';
   s2.drawScene = function (ctx) {
     var im = PICS[s2.pic]._im;

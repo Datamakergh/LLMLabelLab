@@ -29,7 +29,7 @@ window.GIGO = window.GIGO || {};
     ctx.textBaseline = 'alphabetic';
     ctx.fillStyle = '#94a3b8'; ctx.font = '800 10px system-ui'; ctx.textAlign = 'left'; ctx.fillText('LIVE CENSUS  (AI / TRUE)', 16, y0 + 18);
     sps.forEach(function (sp, i) {
-      var ai = s.tally[sp], tr = s.truth[sp], c = G.classColor(sp), max = 4, bw = cw - 14;
+      var ai = s.tally[sp], tr = s.truth[sp], c = G.classColor(sp === 'Predator' ? 'Lion' : sp), max = 4, bw = cw - 14;
       x = 16 + (two ? i % cols : i) * cw; y = two ? y0 + 20 + Math.floor(i / cols) * 27 : y0 + 32;
       ctx.textAlign = 'left'; ctx.fillStyle = '#e2e8f0'; ctx.font = '600 12px system-ui'; ctx.fillText(sp, x, y + 8);
       ctx.textAlign = 'right'; ctx.font = '800 12px system-ui';
@@ -44,7 +44,7 @@ window.GIGO = window.GIGO || {};
     G.GROUND_TRUTH.filter(function (g) { return g.critical; }).forEach(function (g) {
       var r = s.results[g.id], st = !r ? ['…', '#64748b', 'waiting'] : r === 'alert' ? ['✓', '#4ade80', 'sent'] : r === 'late_alert' ? ['!', '#fbbf24', 'late'] : ['✗', '#f87171', 'missed'];
       ctx.fillStyle = st[1]; ctx.font = '800 12px system-ui'; ctx.textAlign = 'left'; ctx.fillText(st[0], x, y + 12);
-      ctx.fillStyle = '#e2e8f0'; ctx.font = '600 12px system-ui'; ctx.fillText(g.cls === 'Lion' ? 'Predator' : 'Poacher', x + 16, y + 12);
+      ctx.fillStyle = '#e2e8f0'; ctx.font = '600 12px system-ui'; ctx.fillText(g.cls === 'Poacher' || g.cls === 'Person' ? 'Poacher' : 'Predator', x + 16, y + 12);
       ctx.fillStyle = st[1]; ctx.textAlign = 'right'; ctx.fillText(st[2], W - 16, y + 12);
       y += 18;
     });

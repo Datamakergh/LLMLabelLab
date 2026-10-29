@@ -165,7 +165,7 @@ function genGraze(i,test){
     art+=T('use',{href:'#'+ref+'@U',transform:tr});
     var bx={x:ox,y:oy,w:w,h:h};
     if(k==='scare')gt.push({c:'intruder',decoy:true,why:'A scarecrow is not a person',x:bx.x,y:bx.y,w:bx.w,h:bx.h});
-    else{var c=GPRED[k]?'predator':k;gt.push({c:c,x:bx.x,y:bx.y,w:bx.w,h:bx.h});animals[c]++}
+    else{var c=GPRED[k]?'predator':k;gt.push({c:c,k:GPRED[k]?k:undefined,x:bx.x,y:bx.y,w:bx.w,h:bx.h});animals[c]++}
   });
   return {art:art,gt:gt,animals:animals};
 }

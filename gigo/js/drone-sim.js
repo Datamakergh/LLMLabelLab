@@ -10,6 +10,8 @@ window.GIGO = window.GIGO || {};
 
   var P = { rows: [85, 250, 415], half: 85, speed: 240, x0: -60, x1: 860, turnT: 0.8, lateBy: 140, endHold: 1, maxTime: 60 };
 
+  var PREDS = { Lion: 1, Hyena: 1, Leopard: 1 };
+  function gk(c) { return (G.SCENARIO.group || {})[c] || c; }
   function note(s, kind, text, id) { s.events.push({ t: s.t, kind: kind, text: text, id: id || null }); }
   function cap(t) { return t.charAt(0).toUpperCase() + t.slice(1); }
   function rowOf(g) {
@@ -29,7 +31,7 @@ window.GIGO = window.GIGO || {};
     (G.SCENARIO.species || G.DRONE_SPECIES).forEach(function (sp) { s.tally[sp] = 0; s.truth[sp] = 0; });
     G.GROUND_TRUTH.forEach(function (g) {
       var d = det[g.id] || { mode: 'missed' };
-      if (s.truth[g.cls] != null) s.truth[g.cls] += 1;
+      if (s.truth[gk(g.cls)] != null) s.truth[gk(g.cls)] += 1;
       s.objs.push({ id: g.id, g: g, row: rowOf(g), cx: g.box.x + g.box.w / 2, mode: d.mode, wrong: !!d.wrong, label: d.label || g.cls,
         conf: d.conf || 0, state: 'pending', seenAt: null });
     });
@@ -44,8 +46,8 @@ window.GIGO = window.GIGO || {};
       else { s.results[g.id] = 'missed_warning'; s.stats.missed += 1; note(s, 'warn', cap(g.cls.toLowerCase()) + ' not counted.', g.id); }
       return;
     }
-    if (o.wrong) {
-      if (s.tally[o.label] != null) s.tally[o.label] += 1;
+    if (o.wrong && !(g.critical && PREDS[g.cls] && PREDS[o.label])) {
+      if (s.tally[gk(o.label)] != null) s.tally[gk(o.label)] += 1;
       if (g.critical) { s.results[g.id] = 'alert_missed'; s.stats.alertsMissed += 1; note(s, 'bad', 'Seen as "' + o.label + '": no alert for the ' + g.short + '.', g.id); }
       else {
         s.results[g.id] = 'mixup'; s.stats.mixups += 1;
@@ -53,7 +55,7 @@ window.GIGO = window.GIGO || {};
       }
       return;
     }
-    if (s.tally[g.cls] != null) s.tally[g.cls] += 1;
+    if (s.tally[gk(g.cls)] != null) s.tally[gk(g.cls)] += 1;
     if (g.critical) {
       s.alert = { id: g.id, t: s.t, late: late };
       if (late) { s.results[g.id] = 'late_alert'; s.stats.lateAlerts += 1; note(s, 'bad', 'Late ' + g.alert + ': ' + g.short + '.', g.id); }
@@ -98,7 +100,7 @@ window.GIGO = window.GIGO || {};
     else s.outcome = 'safe';
     var counted = 0, total = 0;
     (G.SCENARIO.species || G.DRONE_SPECIES).forEach(function (sp) { total += s.truth[sp]; });
-    s.objs.forEach(function (o) { if (!o.g.critical || o.g.cls === 'Lion') { if (s.results[o.id] === 'counted' || s.results[o.id] === 'uncertain' || s.results[o.id] === 'alert' || s.results[o.id] === 'late_alert') counted++; } });
+    s.objs.forEach(function (o) { if (!o.g.critical || PREDS[o.g.cls]) { if (s.results[o.id] === 'counted' || s.results[o.id] === 'uncertain' || s.results[o.id] === 'alert' || s.results[o.id] === 'late_alert') counted++; } });
     s.summary = 'Correct counts: ' + counted + ' of ' + total + ' animals.';
     note(s, s.outcome === 'safe' ? 'ok' : s.outcome === 'warnings' ? 'warn' : 'bad', G.MESSAGES.outcomes[s.outcome].label + '. ' + s.summary);
   }
