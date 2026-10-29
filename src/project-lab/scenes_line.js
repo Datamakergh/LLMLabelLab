@@ -7,7 +7,7 @@ function genLane(i,test){
   art+=T('defs',{},T('linearGradient',{id:'sk@U',x1:0,y1:0,x2:0,y2:1},'<stop offset="0" stop-color="#7dd3fc"/><stop offset="1" stop-color="#e0f2fe"/>')+T('linearGradient',{id:'rd@U',x1:0,y1:0,x2:0,y2:1},'<stop offset="0" stop-color="#6b7280"/><stop offset="1" stop-color="#374151"/>'));
   art+=rect(0,0,640,vy+2,'url(#sk@U)')+rect(0,vy,640,400-vy,'#6a8f3a');
   art+=path('M0,'+vy+' Q120,'+(vy-34)+' 240,'+vy+' T480,'+vy+' T640,'+(vy-8)+' L640,'+vy+' Z','#4b7a56',{opacity:.7});
-  var trees=[];for(var tr=0;tr<9;tr++){var tx=rr(r,0,640),ty=vy+rr(r,0,8),tq=rr(r,8,15);trees.push([tx,ty-8,tq]);art+=circ(tx,ty-8,tq,'#2f5d34')}
+  for(var tr=0;tr<9;tr++){var tx=rr(r,0,640),ty=vy+rr(r,0,8);art+=circ(tx,ty-8,rr(r,8,15),'#2f5d34')}
   var road=[],rl=[];for(var t=0;t<=16;t++){var tt=t/16;road.push([LX(-.14,tt),LY(tt)]);rl.push([LX(1.14,tt),LY(tt)])}
   art+=poly(road.concat(rl.reverse()),'url(#rd@U)');
   function strip(a,t0,t1,w0,color,op){var A=[],B=[],n=8;for(var k=0;k<=n;k++){var t=t0+(t1-t0)*k/n,w=.8+w0*t;A.push([LX(a,t)-w/2,LY(t)]);B.push([LX(a,t)+w/2,LY(t)])}return poly(A.concat(B.reverse()),color,{opacity:op==null?1:op})}
@@ -26,31 +26,7 @@ function genLane(i,test){
   if(i%3===2||test){var tm=[];for(var q3=0;q3<=8;q3++){var t3=.35+.65*q3/8;tm.push([LX(.72,t3)+Math.sin(q3)*6*t3,LY(t3)])}art+=pline(tm,'#111827',3.5,{opacity:.35});gt.push({c:'dashed',decoy:true,why:'A tyre mark is not a painted line',pts:tm})}
   // a car dashboard hint at the bottom
   art+=path('M250,400 L270,372 L370,372 L390,400 Z','#111827',{opacity:.85});
-  return {art:art,gt:gt,vx:vx,lp:{vx:vx,vy:vy,bl:bl,br:br,bend:bend,kind:kind,faded:faded,trees:trees,shadow:(i%3!==1||test),tyre:(i%3===2||test)}};
-}
-
-// ---- moving-car view: redraws the same road as the labelled picture, shifted by the car's sideways position
-function laneFrame(lp,sh,ph){
-  var vx=lp.vx,vy=lp.vy,bl=lp.bl,br=lp.br,bend=lp.bend,a='';
-  function LX(a,t){var xb=bl+(br-bl)*a;return vx+(xb-vx)*t+bend*2*t*(1-t)-sh*t}
-  function LY(t){return vy+(400-vy)*t}
-  a+=T('defs',{},T('linearGradient',{id:'lksk',x1:0,y1:0,x2:0,y2:1},'<stop offset="0" stop-color="#7dd3fc"/><stop offset="1" stop-color="#e0f2fe"/>')+T('linearGradient',{id:'lkrd',x1:0,y1:0,x2:0,y2:1},'<stop offset="0" stop-color="#6b7280"/><stop offset="1" stop-color="#374151"/>'));
-  a+=rect(0,0,640,vy+2,'url(#lksk)')+rect(0,vy,640,400-vy,'#6a8f3a');
-  a+=path('M0,'+vy+' Q120,'+(vy-34)+' 240,'+vy+' T480,'+vy+' T640,'+(vy-8)+' L640,'+vy+' Z','#4b7a56',{opacity:.7});
-  lp.trees.forEach(function(q){a+=circ(q[0]-sh*.02,q[1],q[2],'#2f5d34')});
-  var road=[],rl=[];for(var t=0;t<=16;t++){var tt=t/16;road.push([LX(-.14,tt),LY(tt)]);rl.push([LX(1.14,tt),LY(tt)])}
-  a+=poly(road.concat(rl.reverse()),'url(#lkrd)');
-  function strip(al,t0,t1,w0,color,op){var A=[],B=[],n=8;for(var k=0;k<=n;k++){var t=t0+(t1-t0)*k/n,w=.8+w0*t;A.push([LX(al,t)-w/2,LY(t)]);B.push([LX(al,t)+w/2,LY(t)])}return poly(A.concat(B.reverse()),color,{opacity:op==null?1:op})}
-  function dashed(al,w0,color){var s='',N=18;for(var j=-2;j<N;j+=2){var ja=j+ph,jb=ja+1;if(jb<=0)continue;var t0=Math.pow(Math.max(ja,0)/N,1.6),t1=Math.pow(jb/N,1.6);if(t0>=1)continue;if(t1<.06)continue;t0=Math.max(t0,.06);s+=strip(al,t0,Math.min(t1,1),w0,color)}return s}
-  function solid(al,w0,color,faded){return faded?strip(al,.06,.32,w0,color)+strip(al,.32,.62,w0,color,.25)+strip(al,.62,1,w0,color):strip(al,.06,1,w0,color)}
-  a+=solid(.03,9,'#f8fafc',lp.faded)+solid(.97,9,'#f8fafc',false);
-  if(lp.kind===0)a+=dashed(.5,8,'#f8fafc');else if(lp.kind===1)a+=solid(.488,5,'#facc15')+solid(.512,5,'#facc15');else a+=dashed(1/3,7,'#f8fafc')+dashed(2/3,7,'#f8fafc');
-  if(lp.shadow){var s1=[],s2=[];for(var q=0;q<=10;q++){var t=.32+.68*q/10;s1.push([LX(.12,t)+Math.sin(q*1.7)*2,LY(t)]);s2.push([LX(.26,t)+Math.cos(q*1.3)*2,LY(t)])}a+=poly(s1.concat(s2.reverse()),'#000',{opacity:.28})}
-  if(lp.tyre){var tm=[];for(var q3=0;q3<=8;q3++){var t3=.35+.65*q3/8;tm.push([LX(.72,t3)+Math.sin(q3)*6*t3,LY(t3)])}a+=pline(tm,'#111827',3.5,{opacity:.35})}
-  return a;
-}
-function laneCar(rot){
-  return '<g transform="translate(320 352) rotate('+rot.toFixed(2)+')"><ellipse cx="0" cy="40" rx="48" ry="7" fill="#000" opacity=".3"/><rect x="-38" y="-8" width="14" height="46" rx="4" fill="#111827"/><rect x="24" y="-8" width="14" height="46" rx="4" fill="#111827"/><path d="M-34,34 L-30,-6 Q-26,-22 -12,-26 L12,-26 Q26,-22 30,-6 L34,34 Q0,40 -34,34Z" fill="#dc2626"/><path d="M-24,-4 Q-20,-18 -10,-20 L10,-20 Q20,-18 24,-4Z" fill="#7dd3fc" opacity=".85"/><rect x="-30" y="20" width="14" height="7" rx="2" fill="#fecaca"/><rect x="16" y="20" width="14" height="7" rx="2" fill="#fecaca"/></g>';
+  return {art:art,gt:gt,vx:vx};
 }
 PROJECTS.push({
   id:'lane',name:'Car lane detection',icon:'🛣️',type:'line',tag:'Polyline',
