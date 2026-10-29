@@ -205,6 +205,7 @@ body{display:flex;flex-direction:column;overflow:hidden}
 .deck{flex:1;min-height:0;display:flex;overflow-x:auto;overflow-y:hidden;scroll-snap-type:x mandatory;scrollbar-width:none;overscroll-behavior-x:contain}
 .deck::-webkit-scrollbar{display:none}
 .slide#s2,.slide#s3{display:none}
+body.labonly .slide{display:none}body.labonly .slide#s2{display:block}
 #presentBtn{display:none!important}
 .hub-sub{color:var(--muted,#64748b);margin:-4px 0 14px}.pp-sum{background:#fff;border:1px solid var(--line,#e2e8f0);border-radius:14px;padding:16px 18px;display:flex;flex-direction:column;gap:10px;align-items:flex-start}.pp-bar{width:100%;height:8px;background:#e2e8f0;border-radius:99px;overflow:hidden}.pp-bar i{display:block;height:100%;background:var(--brand)}.pp-next{text-decoration:none;display:inline-block}.pp-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:12px}.pp-card{display:flex;align-items:center;gap:12px;background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:12px 14px;text-decoration:none;color:inherit}.pp-card:hover{border-color:var(--brand)}.pp-ic{font-size:24px}.pp-t{display:flex;flex-direction:column;flex:1;min-width:0}.pp-t em{font-style:normal;font-size:13px;color:#64748b}.pp-go{font-weight:700;color:var(--brand);font-size:13px}
 
@@ -668,7 +669,7 @@ document.addEventListener('click',function(e){var a=e.target.closest&&e.target.c
 $('pgPrev').onclick=function(){goTo(VIS[Math.max(0,VIS.indexOf(cur)-1)])};$('pgNext').onclick=function(){goTo(VIS[Math.min(VIS.length-1,VIS.indexOf(cur)+1)])};
 window.addEventListener('resize',function(){DECK.scrollTo({left:VIS.indexOf(cur)*DECK.clientWidth})});
 setCur(0);
-window.addEventListener('load',function(){if(/^#(practice|lab)$/.test(location.hash)){DECK.scrollTo({left:VIS.indexOf(4)*DECK.clientWidth});setCur(4)}});
+window.addEventListener('load',function(){if(location.hash==='#lab'){document.body.classList.add('labonly');DECK.scrollLeft=0;try{renderItem();live()}catch(e){}return}if(/^#(practice|lab)$/.test(location.hash)){DECK.scrollTo({left:VIS.indexOf(4)*DECK.clientWidth});setCur(4)}});
 
 // ---- practice hub: progress through the projects
 var PP=[['coffee','☕','Coffee leaf disease'],['lane','🛣️','Car lane detection'],['skin','🩺','Skin lesion mapping'],['pose','🏃','Exercise coaching keypoints'],['churn','💬','Coffee customer churn'],['g_road','🚦','Self-driving car: road safety (GIGO scene)'],['g_warehouse','🦺','Warehouse PPE gate (GIGO scene)'],['g_drone','🦁','Drone wildlife census (GIGO scene)'],['g_crop','🌽','Maize disease scout (GIGO scene)']],
