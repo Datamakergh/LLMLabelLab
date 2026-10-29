@@ -33,3 +33,6 @@ Status: migrated, integrated and tested (see Tests). Nothing here loads from the
 
 ## Not done yet
 The seven-project, four-stage learning progression (trainer demo, guided practice, self-paced, competitive challenge) and its persistence and security work are separate from this migration and are not implemented here.
+
+## Warehouse pictures (added after the migration)
+The warehouse scene now has 6 pictures with a picture switcher: picture 1 is the original GIGO drawing, pictures 2 to 6 are worker photos from the Project Lab safety-equipment project, converted by a one-off script into `gigo/js/warehouse-pics.js` (images as data URLs plus boxes scaled to 800 x 500). Hard hats, goggles, vests and boots map to the five warehouse classes. Goggles are optional on these photos (`worker.req`), so only hats, vests and boots are required, and `ppe-sim.js` honours that. `scene.js` caches the scene per picture. `gigo/tests/run.js` checks every picture (perfect copy scores 100, accurate labels pass the gate, no labels let an unsafe worker in).

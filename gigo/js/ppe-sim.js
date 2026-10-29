@@ -19,6 +19,9 @@ window.GIGO = window.GIGO || {};
   function cap(t) { return t.charAt(0).toUpperCase() + t.slice(1); }
   function list(a) { return a.length < 2 ? a.join('') : a.slice(0, -1).join(', ') + ' and ' + a[a.length - 1]; }
 
+  // items a worker must wear; pictures may leave some (e.g. goggles) optional via spec.req
+  function itemsOf(spec) { return G.PPE_ITEMS.filter(function (it) { return !spec.req || spec.req.indexOf(it.key) > -1 || spec.wears[it.key]; }); }
+
   function create(det) {
     det = det || {};
     var s = {
@@ -41,7 +44,7 @@ window.GIGO = window.GIGO || {};
 
   // what the AI concludes for each required item once it can see the worker
   function runChecks(s, w) {
-    return G.PPE_ITEMS.map(function (it) {
+    return itemsOf(w.spec).map(function (it) {
       var worn = !!w.spec.wears[it.key], d = s.det[w.id + '_' + it.key], seen = worn && d && (d.mode === 'good' || d.mode === 'late');
       return { key: it.key, noun: it.noun, cls: it.cls, worn: worn, seen: seen, status: seen ? 'ok' : (worn ? 'false' : 'missing') };
     });
@@ -94,7 +97,7 @@ window.GIGO = window.GIGO || {};
         if (w.seen && w.x >= stopAt) { w.x = Math.max(w.x, stopAt); w.state = 'check'; w.checkAt = s.t; w.checks = runChecks(s, w); }
         if (w.mode === 'missed' && w.x >= P.zoneX && !w.entered) {
           w.entered = true; s.nextAt = s.t + P.gap;
-          var miss = G.PPE_ITEMS.filter(function (it) { return !w.spec.wears[it.key]; }).map(function (it) { return it.noun; });
+          var miss = itemsOf(w.spec).filter(function (it) { return !w.spec.wears[it.key]; }).map(function (it) { return it.noun; });
           G.PPE_ITEMS.forEach(function (it) { if (w.spec.wears[it.key]) s.results[w.id + '_' + it.key] = 'not_checked'; });
           if (miss.length) {
             s.results[w.id] = 'incident'; s.stats.incidents += 1; w.danger = true;

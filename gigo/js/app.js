@@ -186,6 +186,24 @@
     setStep(4);
     $('panel-annotate').scrollIntoView({ behavior: 'smooth', block: 'start' });
   });
+  /* ---- picture switcher (warehouse has several pictures) */
+  var picIdx = 0;
+  function buildPicBar() {
+    var pb = $('pic-bar'), pics = G.SCENARIO.id === 'warehouse' && G.whPictures ? G.whPictures() : [];
+    pb.hidden = pics.length < 2; pb.innerHTML = '';
+    pics.forEach(function (p, i) {
+      var b = document.createElement('button');
+      b.type = 'button'; b.className = 'pic'; b.textContent = i + 1; b.title = p.label; b.setAttribute('aria-label', p.label);
+      b.setAttribute('aria-pressed', i === picIdx ? 'true' : 'false');
+      b.addEventListener('click', function () {
+        if (i === picIdx || phase === 'running') return;
+        if (annot.getBoxes().length && !confirm('Switch picture? Your boxes on this picture will be removed.')) return;
+        G.whUse(i, function () { picIdx = i; annot.reset(); startOver(); buildPicBar(); syncClassBar(); updateProgress(); });
+      });
+      pb.appendChild(b);
+    });
+    if (pics.length > 1) { var l = document.createElement('span'); l.className = 'pic-l'; l.textContent = 'Picture'; pb.insertBefore(l, pb.firstChild); }
+  }
   function startOver() {
     cancelAnimationFrame(raf);
     history = []; annot.setShowKey(false); $('btn-key').setAttribute('aria-pressed', 'false'); $('btn-key').disabled = true;
@@ -225,7 +243,8 @@
       $('sim-canvas').setAttribute('aria-label', sc.has3d && mode3d === '3d' ? 'Chase-camera driving simulation' : sc.simLabel);
     }
     document.querySelectorAll('.disclaimer-text').forEach(function (n) { n.textContent = G.MESSAGES.disclaimer; });
-    buildClassBar();
+    if (id === 'warehouse' && G.whUse) { picIdx = 0; G.whUse(0); sc = G.SCENARIO; }
+    buildClassBar(); buildPicBar();
     annot.reset();
     startOver();
     syncClassBar();

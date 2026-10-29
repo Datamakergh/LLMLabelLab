@@ -154,7 +154,7 @@ button:active:not(:disabled) { transform: translateY(1px) scale(.98); }
 .panels { grid-template-rows: auto; }
 .panel { display: grid; grid-row: span 4; grid-template-rows: subgrid; row-gap: 10px; }
 .panel > .panel-head { grid-row: 1; }
-.panel > .class-bar, .panel > .legend { grid-row: 2; align-self: start; }
+.panel > .class-bar, .panel > .legend, .panel > .bar-row { grid-row: 2; align-self: start; }
 .panel > .stage, .panel > .qa-list { grid-row: 3; }
 .panel > .qa-list { contain: size; max-height: none; min-height: 0; align-self: stretch; }
 .panel > .qa-list[hidden] { display: none; }
@@ -166,3 +166,9 @@ button:active:not(:disabled) { transform: translateY(1px) scale(.98); }
 #panel-sim .sim-stage canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
 #panel-sim .legend { align-items: center; }
 #panel-sim .sim-stage .chat { position: absolute; inset: 0; height: auto; min-height: 0; }
+
+.pic-bar { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; margin-bottom: 8px; }
+.pic-bar[hidden] { display: none; }
+.pic-bar .pic-l { font-size: 12px; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: .06em; margin-right: 4px; }
+.pic-bar .pic { width: 34px; height: 34px; border-radius: 9px; border: 1px solid #cbd5e1; background: #fff; font-weight: 700; cursor: pointer; }
+.pic-bar .pic[aria-pressed="true"] { background: #2563eb; border-color: #2563eb; color: #fff; }

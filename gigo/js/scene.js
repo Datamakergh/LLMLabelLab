@@ -393,7 +393,7 @@ window.GIGO = window.GIGO || {};
 
   var cache = {};
   G.getSceneCanvas = function () {
-    var S = G.SCENARIO, id = S ? S.id : 'road';
+    var S = G.SCENARIO, id = (S ? S.id : 'road') + ':' + ((S && S.pic) || 0);
     if (cache[id]) return cache[id];
     var c = cache[id] = document.createElement('canvas');
     c.width = G.SCENE.width; c.height = G.SCENE.height;

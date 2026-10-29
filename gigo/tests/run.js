@@ -5,7 +5,7 @@ var fs = require('fs'), path = require('path'), vm = require('vm');
 var sandbox = { window: {} };
 sandbox.window.window = sandbox.window;
 vm.createContext(sandbox);
-['config', 'evaluator', 'simulator', 'warehouse', 'ppe-sim', 'drone', 'drone-sim', 'crop', 'crop-sim', 'llm', 'llm-sim'].forEach(function (f) {
+['config', 'evaluator', 'simulator', 'warehouse', 'warehouse-pics', 'ppe-sim', 'drone', 'drone-sim', 'crop', 'crop-sim', 'llm', 'llm-sim'].forEach(function (f) {
   vm.runInContext(fs.readFileSync(path.join(__dirname, '..', 'js', f + '.js'), 'utf8'), sandbox, { filename: f + '.js' });
 });
 var G = sandbox.window.GIGO;
@@ -206,6 +206,26 @@ r = chat(labels(), ['capital of kenya?']);
 ok(r.s.outcome === 'safe' && r.s.stats.asked === 1 && /1 of 10/.test(r.s.summary), 'llm asking only one topic is scored on what was asked');
 r = chat(labels(), ['hello']);
 ok(r.s.outcome === 'warnings', 'llm nothing matched -> warnings');
+
+
+// ---- warehouse pictures (photos converted from Project Lab)
+(function () {
+  var pics = G.whPictures();
+  ok(pics.length === 6, 'warehouse has 6 pictures (' + pics.length + ')');
+  pics.forEach(function (p, i) {
+    G.whUse(i);
+    var gt = G.GROUND_TRUTH, persons = gt.filter(function (g) { return g.cls === 'Person'; });
+    ok(persons.length >= 3 && persons.every(function (g) { return g.worker && g.worker.wears; }), 'picture ' + (i + 1) + ': every Person has a worker spec');
+    ok(G.evaluate(gt.map(function (g, k) { return { id: k, x: g.box.x, y: g.box.y, w: g.box.w, h: g.box.h, cls: g.cls }; }), gt).score === 100, 'picture ' + (i + 1) + ': perfect copy scores 100');
+    var det = G.buildDetections(G.evaluate(gt.map(function (g, k) { return { id: k, x: g.box.x, y: g.box.y, w: g.box.w, h: g.box.h, cls: g.cls }; }), gt));
+    var s = G.PPESim.create(det), n = 0; while (!s.done && n++ < 60 * 200) G.PPESim.step(s, 1 / 60);
+    ok(s.done && s.outcome === 'safe', 'picture ' + (i + 1) + ': all accurate -> all checks correct (' + s.outcome + ')');
+    var s2 = G.PPESim.create({}); n = 0; while (!s2.done && n++ < 60 * 200) G.PPESim.step(s2, 1 / 60);
+    var unsafe = persons.some(function (g) { return g.missingPPE && g.missingPPE.length; });
+    ok(!unsafe || s2.outcome === 'collision', 'picture ' + (i + 1) + ': nothing labelled -> unsafe worker walks in (' + s2.outcome + ')');
+  });
+  G.whUse(0);
+})();
 G.useScenario('road');
 
 console.log(failed ? '\n' + failed + ' FAILED' : '\nall passed');

@@ -310,6 +310,22 @@ window.GIGO = window.GIGO || {};
     ctx.fillStyle = vg; ctx.fillRect(0, 0, W, H);
   }
 
+
+  /* ---- extra pictures: picture 1 is the drawn scene above, the rest are photos from warehouse-pics.js */
+  var BASE = { id: 'p1', label: 'Picture 1', gt: GT, draw: drawScene };
+  var PICS = null;
+  G.whPictures = function () { return PICS || (PICS = [BASE].concat((G.WH_PICS || []).map(function (p) { return { id: p.id, label: p.label, gt: p.gt, img: p.img }; }))); };
+  G.whUse = function (i, done) {
+    var sc = G.SCENARIOS.warehouse, p = G.whPictures()[i] || BASE;
+    function apply() {
+      sc.groundTruth = p.gt; sc.pic = G.whPictures().indexOf(p);
+      sc.drawScene = p.img ? function (ctx) { ctx.drawImage(p._im, 0, 0, G.SCENE.width, G.SCENE.height); } : drawScene;
+      G.useScenario('warehouse'); if (done) done();
+    }
+    if (!p.img || typeof Image === 'undefined' || (p._im && p._im.complete && p._im.naturalWidth)) return apply();
+    var im = p._im = new Image(); im.onload = apply; im.src = p.img;
+  };
+
   G.PPE_ITEMS = ITEMS;
   G.SCENARIOS.warehouse = {
     id: 'warehouse', label: 'Warehouse PPE', tagline: 'Train the AI, Keep the Floor Safe',
@@ -325,7 +341,7 @@ window.GIGO = window.GIGO || {};
     },
     outcomeLabel: 'Safety outcome',
     disclaimer: 'Educational simulation driven by simple rules, not a real AI model.',
-    task: 'Box every worker and only the PPE they really wear (12 objects), then run the gate.',
+    task: 'Box every worker and only the PPE they really wear, then run the gate.',
       purpose: 'A safety gate at a warehouse door should only let workers in if they wear hard hats, goggles, vests and boots. This project shows how wrong PPE labels let unprotected people through or raise false alarms.',
     annotLabel: 'Warehouse scene to annotate',
     simTitle: 'AI safety gate',

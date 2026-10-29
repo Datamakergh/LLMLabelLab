@@ -34,7 +34,8 @@
         <small id="progress-boxes">0 boxes drawn</small>
       </div>
     </div>
-    <div id="class-bar" class="class-bar" role="group" aria-label="Object class"></div>
+    <div class="bar-row"><div id="pic-bar" class="pic-bar" role="group" aria-label="Picture" hidden></div>
+    <div id="class-bar" class="class-bar" role="group" aria-label="Object class"></div></div>
     <div class="stage" id="annot-stage"><canvas id="annot-canvas" width="800" height="500" aria-label="Scene to annotate"></canvas></div>
     <ol id="label-list" class="qa-list" hidden></ol>
     <div class="panel-foot">
@@ -151,6 +152,7 @@
 <script src="js/config.js"></script>
 <script src="js/scene.js"></script>
 <script src="js/warehouse.js"></script>
+<script src="js/warehouse-pics.js"></script>
 <script src="js/evaluator.js"></script>
 <script src="js/annotator.js"></script>
 <script src="js/simulator.js"></script>

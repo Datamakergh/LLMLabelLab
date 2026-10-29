@@ -10,7 +10,7 @@ function sLoad(){try{var v=JSON.parse(sessionStorage.getItem('llp2_'+P.id)||'nul
 function toast(m){var t=$('toast');t.textContent=m;t.hidden=false;clearTimeout(toast.h);toast.h=setTimeout(function(){t.hidden=true},3000)}
 // ---------- landing
 var GSC=[{id:'road',icon:'🚦',tag:'Bounding box · GIGO scene',name:'Self-driving car: road safety',blurb:'Box cars, people, cyclists, lights and signs, then run the 2D or 3D drive and see the near misses and crashes.'},
- {id:'warehouse',icon:'🦺',tag:'Bounding box · GIGO scene',name:'Warehouse PPE gate',blurb:'Check workers for hard hats, goggles, vests and boots at a distribution centre.'},
+ {id:'warehouse',icon:'🦺',tag:'Bounding box · GIGO scene',name:'Warehouse PPE gate',blurb:'Check workers for hard hats, goggles, vests and boots across 6 different pictures, then run the safety gate.'},
  {id:'drone',icon:'🦁',tag:'Bounding box · GIGO scene',name:'Drone wildlife census',blurb:'Count animals from the air over the Maasai Mara and flag poachers and predators.'},
  {id:'crop',icon:'🌽',tag:'Bounding box · GIGO scene',name:'Maize disease scout',blurb:'Diagnose maize leaves on a Kenyan smallholder farm so the right plants get treated.'},
  {id:'llm',icon:'💬',tag:'Text labelling · GIGO scene',name:'LLM answer check',blurb:'Pick the right answer to each question. The chatbot learns whatever you pick.'}];
