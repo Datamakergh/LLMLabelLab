@@ -12,7 +12,8 @@ window.GIGO = window.GIGO || {};
     { id: 'Giraffe', color: '#ca8a04', key: '3' }, { id: 'Wildebeest', color: '#7c3aed', key: '4' },
     { id: 'Cattle', color: '#16a34a', key: '5' }, { id: 'Goat', color: '#a16207', key: '6' },
     { id: 'Buffalo', color: '#0f766e', key: '7' }, { id: 'Rhino', color: '#db2777', key: '8' },
-    { id: 'Lion', color: '#ea580c', key: '9' }, { id: 'Person', color: '#dc2626', key: '0' }
+    { id: 'Lion', color: '#ea580c', key: '9' }, { id: 'Person', color: '#dc2626', key: '0' },
+    { id: 'Scarecrow', color: '#b45309', key: '-' }
   ];
   var s2 = {};
   for (var k in base) s2[k] = base[k];
