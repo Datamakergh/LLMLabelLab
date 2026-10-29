@@ -668,6 +668,7 @@ document.addEventListener('click',function(e){var a=e.target.closest&&e.target.c
 $('pgPrev').onclick=function(){goTo(VIS[Math.max(0,VIS.indexOf(cur)-1)])};$('pgNext').onclick=function(){goTo(VIS[Math.min(VIS.length-1,VIS.indexOf(cur)+1)])};
 window.addEventListener('resize',function(){DECK.scrollTo({left:VIS.indexOf(cur)*DECK.clientWidth})});
 setCur(0);
+window.addEventListener('load',function(){if(/^#(practice|lab)$/.test(location.hash)){DECK.scrollTo({left:VIS.indexOf(4)*DECK.clientWidth});setCur(4)}});
 
 // ---- practice hub: progress through the projects
 var PP=[['coffee','☕','Coffee leaf disease'],['lane','🛣️','Car lane detection'],['skin','🩺','Skin lesion mapping'],['pose','🏃','Exercise coaching keypoints'],['churn','💬','Coffee customer churn'],['g_road','🚦','Self-driving car: road safety (GIGO scene)'],['g_warehouse','🦺','Warehouse PPE gate (GIGO scene)'],['g_drone','🦁','Drone wildlife census (GIGO scene)'],['g_crop','🌽','Maize disease scout (GIGO scene)']],
