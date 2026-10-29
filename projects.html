@@ -5018,7 +5018,7 @@ function plStartDrive(o){
   var G=window.GIGO,box=$('simview'),d=driveRun(o.sc,o.ann,P);
   cancelAnimationFrame(PL.raf);clearTimeout(PL.doneTimer);
   PL.box=box;PL.sc=o.sc;PL.ann=o.ann;PL.res=o.res;PL.D=d;PL.drive=true;PL.cam=false;PL.items=[];PL.items_g=null;PL.beam=null;PL.endScan=0;PL.S=1;
-  if(!PL.drvInit){PL.drvInit=1;PL.speed=2}
+  if(!PL.drvInit){PL.drvInit=1;PL.speed=.5}
   var keepT=o.mode==='keep'?PL.t:0;
   var tmp=document.createElement('ul');tmp.innerHTML=o.rep.html;var rows=[].slice.call(tmp.children).map(function(li){var id=li.getAttribute('data-id');var t=id==='end'?d.T+0.2:id==='x'?d.T*0.5:(d.pass[id]!=null?d.pass[id]:d.T*0.5);return {li:li,t:t}});
   rows.sort(function(a,b){return a.t-b.t});PL.rows=rows.map(function(r){return r.li});PL.rowT=rows.map(function(r){return r.t});
