@@ -20,14 +20,14 @@ window.GIGO = window.GIGO || {};
   function list(a) { return a.length < 2 ? a.join('') : a.slice(0, -1).join(', ') + ' and ' + a[a.length - 1]; }
 
   // items a worker must wear; pictures may leave some (e.g. goggles) optional via spec.req
-  function itemsOf(spec) { return G.PPE_ITEMS.filter(function (it) { return !spec.req || spec.req.indexOf(it.key) > -1 || spec.wears[it.key]; }); }
+  function itemsOf(spec) { return (G.SCENARIO.items || G.PPE_ITEMS).filter(function (it) { return !spec.req || spec.req.indexOf(it.key) > -1 || spec.wears[it.key]; }); }
 
   function create(det) {
     det = det || {};
     var s = {
       t: 0, done: false, endAt: null, workers: [], events: [], det: det, alarmAt: null,
       signal: 'idle', signalAt: 0, nextAt: 0.3,
-      stats: { incidents: 0, nearMisses: 0, falseAlarms: 0, lateChecks: 0, unchecked: 0 },
+      stats: { incidents: 0, nearMisses: 0, falseAlarms: 0, lateChecks: 0, unchecked: 0, unclear: 0 },
       results: {}, outcome: null
     };
     G.GROUND_TRUTH.forEach(function (g) {
@@ -43,7 +43,28 @@ window.GIGO = window.GIGO || {};
   }
 
   // what the AI concludes for each required item once it can see the worker
+  // pictures with explicit "no helmet / no vest ..." classes (G.SCENARIO.items): worn items and missing-item evidence are separate objects
+  function objsOf(w, key) {
+    var o = { worn: [], no: [] };
+    G.GROUND_TRUTH.forEach(function (g) { if (g.of === w.id && g.item === key) (g.missing ? o.no : o.worn).push(g); });
+    return o;
+  }
+  function seenDet(d) { return d && (d.mode === 'good' || d.mode === 'late'); }
+  function runChecks2(s, w) {
+    return itemsOf(w.spec).map(function (it) {
+      var o = objsOf(w, it.key), worn = !!w.spec.wears[it.key], status;
+      if (worn) {
+        status = o.worn.some(function (g) { var d = s.det[g.id]; return seenDet(d) && (!d.wrong || it.cls.indexOf(d.label) > -1); }) ? 'ok' : 'false';
+      } else {
+        var fooled = o.no.some(function (g) { var d = s.det[g.id]; return d && d.wrong && it.cls.indexOf(d.label) > -1; });
+        var conf = o.no.some(function (g) { var d = s.det[g.id]; return seenDet(d) && !d.wrong; });
+        status = fooled ? 'fooled' : conf ? 'missing' : 'unconfirmed';
+      }
+      return { key: it.key, noun: it.noun, cls: it.disp, worn: worn, seen: status === 'ok', status: status, o: o };
+    });
+  }
   function runChecks(s, w) {
+    if (G.SCENARIO.items) return runChecks2(s, w);
     return itemsOf(w.spec).map(function (it) {
       var worn = !!w.spec.wears[it.key], d = s.det[w.id + '_' + it.key], seen = worn && d && (d.mode === 'good' || d.mode === 'late');
       return { key: it.key, noun: it.noun, cls: it.cls, worn: worn, seen: seen, status: seen ? 'ok' : (worn ? 'false' : 'missing') };
@@ -52,11 +73,26 @@ window.GIGO = window.GIGO || {};
 
   function decide(s, w) {
     var c = w.checks = runChecks(s, w), late = w.mode === 'late';
-    var missing = c.filter(function (k) { return k.status === 'missing'; }).map(function (k) { return k.noun; });
+    var x2 = !!G.SCENARIO.items;
+    var missing = c.filter(function (k) { return k.status === 'missing' || k.status === 'unconfirmed'; }).map(function (k) { return k.noun; });
     var fake = c.filter(function (k) { return k.status === 'false'; });
+    var fooled = c.filter(function (k) { return k.status === 'fooled'; });
     w.decided = true; s.nextAt = s.t + P.gap;
-    fake.forEach(function (k) { s.results[w.id + '_' + k.key] = 'missed_warning'; });
+    if (x2) {
+      c.forEach(function (k) {
+        if (k.status === 'false') k.o.worn.forEach(function (g) { if (!seenDet(s.det[g.id])) s.results[g.id] = 'missed_warning'; });
+        if (k.status === 'missing') k.o.no.forEach(function (g) { s.results[g.id] = 'confirmed'; });
+        if (k.status === 'unconfirmed') { k.o.no.forEach(function (g) { s.results[g.id] = 'unclear'; }); s.stats.unclear += 1; }
+      });
+    } else fake.forEach(function (k) { s.results[w.id + '_' + k.key] = 'missed_warning'; });
     s.stats.falseAlarms += fake.length;
+    if (fooled.length && !missing.length && !fake.length) {
+      w.state = 'pass'; s.signal = 'go'; s.signalAt = s.t;
+      s.results[w.id] = 'incident'; s.stats.incidents += 1; w.danger = true;
+      fooled.forEach(function (k) { k.o.no.forEach(function (g) { s.results[g.id] = 'fooled'; }); });
+      note(s, 'bad', 'Cleared in error: the AI read the missing ' + list(fooled.map(function (k) { return k.noun; })) + ' on ' + w.short + ' as worn.', w.id);
+      return;
+    }
     if (missing.length || fake.length) {
       w.state = 'back'; s.signal = 'stop'; s.signalAt = s.t;
       if (missing.length && late) {
@@ -69,7 +105,7 @@ window.GIGO = window.GIGO || {};
         s.results[w.id] = late ? 'late_check' : 'false_alarm';
         if (late) s.stats.lateChecks += 1;
       }
-      fake.forEach(function (k) { note(s, 'warn', 'False alarm: AI could not see ' + w.short + '’s ' + k.noun + '.', w.id + '_' + k.key); });
+      fake.forEach(function (k) { note(s, 'warn', 'False alarm: AI could not see ' + w.short + '’s ' + k.noun + '.', x2 && k.o.worn[0] ? k.o.worn[0].id : w.id + '_' + k.key); });
     } else {
       w.state = 'pass'; s.signal = 'go'; s.signalAt = s.t;
       if (late) { s.results[w.id] = 'late_check'; s.stats.lateChecks += 1; note(s, 'warn', 'Late check: ' + w.short + ' was cleared only inside the zone.', w.id); }
@@ -98,7 +134,8 @@ window.GIGO = window.GIGO || {};
         if (w.mode === 'missed' && w.x >= P.zoneX && !w.entered) {
           w.entered = true; s.nextAt = s.t + P.gap;
           var miss = itemsOf(w.spec).filter(function (it) { return !w.spec.wears[it.key]; }).map(function (it) { return it.noun; });
-          G.PPE_ITEMS.forEach(function (it) { if (w.spec.wears[it.key]) s.results[w.id + '_' + it.key] = 'not_checked'; });
+          if (G.SCENARIO.items) G.GROUND_TRUTH.forEach(function (g) { if (g.of === w.id && !g.missing) s.results[g.id] = 'not_checked'; });
+          else G.PPE_ITEMS.forEach(function (it) { if (w.spec.wears[it.key]) s.results[w.id + '_' + it.key] = 'not_checked'; });
           if (miss.length) {
             s.results[w.id] = 'incident'; s.stats.incidents += 1; w.danger = true;
             note(s, 'bad', 'Unseen: ' + w.short + ' walked into the zone without ' + list(miss) + '.', w.id);
@@ -129,7 +166,7 @@ window.GIGO = window.GIGO || {};
     var st = s.stats;
     if (st.incidents) s.outcome = 'collision';
     else if (st.nearMisses) s.outcome = 'near_miss';
-    else if (st.falseAlarms || st.lateChecks || st.unchecked) s.outcome = 'warnings';
+    else if (st.falseAlarms || st.lateChecks || st.unchecked || st.unclear) s.outcome = 'warnings';
     else s.outcome = 'safe';
     note(s, s.outcome === 'safe' ? 'ok' : s.outcome === 'warnings' ? 'warn' : 'bad', G.MESSAGES.outcomes[s.outcome].label + '.');
   }

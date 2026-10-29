@@ -158,7 +158,7 @@ function plCtl(){
 }
 
 // ===== Self-driving: the video is GIGO's driving simulator, built from the same objects as the labelled image =====
-function gUse(scn,sc){var G=window.GIGO;G.useScenario(scn);if(sc&&sc.pic!=null&&G.dr2Use&&scn==='drone2')G.dr2Use(sc.pic);if(sc)G.GROUND_TRUTH=sc.gz}
+function gUse(scn,sc){var G=window.GIGO;G.useScenario(scn);if(sc&&sc.pic!=null){if(scn==='drone2'&&G.dr2Use)G.dr2Use(sc.pic);if(scn==='warehouse2'&&G.wh2Use)G.wh2Use(sc.pic)}if(sc)G.GROUND_TRUTH=sc.gz}
 function driveDet(sc,pred,Pj){
   Pj=Pj||P;var G=window.GIGO;gUse(Pj.scn,sc);
   var boxes=pred.map(function(a,i){return {id:i,x:a.x*1.25,y:a.y*1.25,w:a.w*1.25,h:a.h*1.25,cls:Pj.cmap[a.c]}});

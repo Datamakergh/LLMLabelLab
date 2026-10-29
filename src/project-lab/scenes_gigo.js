@@ -40,21 +40,23 @@ function cropObjects(i,test){
 function gGen(scn,objs){return function(i,test){
   var G=window.GIGO,gz,art;
   if(scn==='warehouse'){var pic=G.whPictures()[test?P.nTrain+i:i];gz=gDeep(pic.gt);art=pic.img?'<image href="'+pic.img+'" x="0" y="0" width="640" height="400" preserveAspectRatio="none"/>':gCanvasArt('warehouse',gz)}
+  else if(scn==='warehouse2'){var wi=test?P.nTrain+i:i,wp=G.WH2_PICS[wi];gz=gDeep(wp.gt);art='<image href="'+wp.img+'" x="0" y="0" width="640" height="400" preserveAspectRatio="none"/>';return {art:art,gt:gBoxes(gz),gz:gz,counts:{},pic:wi}}
   else if(scn==='drone2'){var di=test?P.nTrain+i:i,dp=G.DR_PICS[di];gz=gDeep(dp.gt);art='<image href="'+dp.img+'" x="0" y="0" width="640" height="400" preserveAspectRatio="none"/>';return {art:art,gt:gBoxes(gz),gz:gz,counts:{},pic:di}}
   else{gz=objs(i,test);art=gCanvasArt(scn,gz)}
   return {art:art,gt:gBoxes(gz),gz:gz,counts:{}}}}
 var GFLOW={guide:['Box each object tight, from edge to edge.','One box per object.','Pick the right class for every box.','Box every object that matters, even small ones.'],pt:'GIGO scene'};
+var PPE=PROJECTS.filter(function(p){return p.id==='ppe'})[0],PPEH={},PPET={};
+PPE.classes.forEach(function(c){PPEH[c.name]=c.help;PPET[gSlug(c.name)]=PPE.tips[c.id]||''});
 PROJECTS.push({
-  id:'g_warehouse',scn:'warehouse',name:'Warehouse PPE gate',icon:'🦺',type:'box',tag:'Bounding box · GIGO scene',
-  blurb:'Box workers and the safety gear they wear, then watch the safety gate stop anyone missing a hard hat, vest or boots.',
-  client:'A distribution centre uses a camera at the door to check workers for hard hats, vests and boots. It learns only from the boxes you draw.',
+  id:'g_warehouse',scn:'warehouse2',name:'Warehouse PPE gate',icon:'🦺',type:'box',tag:'Bounding box · GIGO scene',
+  blurb:'Box workers, the safety gear they wear and the gear they are missing, then watch the safety gate stop anyone without a helmet, vest, boots or gloves.',
+  client:'A distribution centre uses a camera at the door to check workers for helmets, vests, boots and gloves. It learns only from the boxes you draw.',
   source:'https://datamaker.io/ko/blog/articles/review/safety-equipment',
-  classes:gClasses('warehouse',{'Person':'The whole worker, from head to feet.','Hard Hat':'The hard hat on the head. A bare head gets no box.','Goggles':'Safety goggles over the eyes. Only box them when you see them.','Safety Vest':'The hi-vis vest on the chest.','Safety Boots':'Work boots on the feet. Box both feet together.'}),
-  guide:['Box every worker first, then only the gear they really wear.','Draw each box tight, edge to edge.','Do not box gear that is missing. The gate flags the worker for it.','Goggles are optional: box them only when worn.'],
-  traps:['A bare head gets no hard hat box.','Gear inside a person box still needs its own box.','Goggles are small. Look closely.'],
-  gigo:'If you miss a worker, the gate never checks them. If you skip a vest or boots, the gate raises a false alarm on a worker who is fully dressed.',
-  nTrain:6,nTest:3,gen:gGen('warehouse'),
-  tips:{person:'Box every worker. A missed person walks in unchecked.',hardhat:'Box the hat only when it is on a head.',goggles:'Small and easy to miss.',safetyvest:'Box the vest on the chest.',safetyboots:'Both feet in one box.'},
+  classes:gClasses('warehouse2',PPEH),
+  guide:PPE.guide,traps:PPE.traps,
+  gigo:'If you miss a worker, the gate never checks them. If you skip a worn item, the gate raises a false alarm on a worker who is fully dressed. If you label a missing item as the gear itself, the gate waves an unsafe worker through.',
+  nTrain:10,nTest:2,gen:gGen('warehouse2'),
+  tips:PPET,
   reportTitle:'What the safety gate did'});
 PROJECTS.push({
   id:'g_drone',scn:'drone2',name:'Drone wildlife census',icon:'🦁',type:'box',tag:'Bounding box · GIGO scene',

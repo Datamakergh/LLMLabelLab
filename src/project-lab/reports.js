@@ -103,8 +103,8 @@ REP.drive=function(sc,pred,P){
 
 
 // generic report for the GIGO scene projects (warehouse, drone, crop); road reuses REP.drive
-var GOKRES={safe:1,stopped:1,cleared:1,alert:1,counted:1,ok:1};
-function gTag(r){return ({incident:'Incident',unchecked:'Unchecked',near_miss:'Near miss',late_check:'Late check',false_alarm:'False alarm',stopped:'Stopped',cleared:'Cleared',missed_warning:'Missed',not_checked:'Not checked',alert_missed:'Alert missed',late_alert:'Late alert',alert:'Alert sent',counted:'Counted',mixup:'Mix-up',uncertain:'Unsure',ok:'Treated',outbreak:'Outbreak',late_treat:'Late treatment',late:'Late',wasted:'Wasted spray',wrong_tx:'Wrong treatment'})[r]||r}
+var GOKRES={safe:1,stopped:1,cleared:1,alert:1,counted:1,ok:1,confirmed:1};
+function gTag(r){return ({incident:'Incident',unchecked:'Unchecked',near_miss:'Near miss',late_check:'Late check',false_alarm:'False alarm',stopped:'Stopped',cleared:'Cleared',missed_warning:'Missed',not_checked:'Not checked',alert_missed:'Alert missed',late_alert:'Late alert',alert:'Alert sent',counted:'Counted',mixup:'Mix-up',uncertain:'Unsure',ok:'Treated',outbreak:'Outbreak',late_treat:'Late treatment',late:'Late',wasted:'Wasted spray',wrong_tx:'Wrong treatment',confirmed:'Confirmed',unclear:'No reason',fooled:'Fooled'})[r]||r}
 function gigoReport(sc,pred,P){
   var d=driveRun(sc,pred,P),G=window.GIGO,S=d.SC,s=d.s,rows='',bad=0;
   function row(ok,t,tag,id){return li(ok,t,tag).replace('<li ','<li data-id="'+id+'" ')}

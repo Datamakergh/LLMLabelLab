@@ -129,7 +129,7 @@ window.GIGO = window.GIGO || {};
     ctx.fillStyle = '#cbd5e1'; ctx.font = '700 10px system-ui'; ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
     ctx.fillText('PPE CHECK', x + 8, y + 10);
     rows.forEach(function (r, i) {
-      var ry = y + 24 + i * 16, ok = r.status === 'ok', fake = r.status === 'false';
+      var ry = y + 24 + i * 16, ok = r.status === 'ok' || r.status === 'fooled', fake = r.status === 'false';
       ctx.fillStyle = ok ? '#22c55e' : fake ? '#f97316' : '#ef4444';
       ctx.font = '800 11px system-ui'; ctx.fillText(ok ? '✓' : '✗', x + 8, ry);
       ctx.fillStyle = '#fff'; ctx.font = '600 11px system-ui';
@@ -166,6 +166,7 @@ window.GIGO = window.GIGO || {};
             w.checks.forEach(function (r) {
               if (r.status !== 'ok') return;
               var g = { hat: [-11, 2, 22, 9], goggles: [-9, 11.5, 18, 4.5], vest: [-14.5, 23, 29, 32], boots: [-13, 87, 26, 13] }[r.key];
+              if (!g) return;
               ctx.strokeStyle = G.classColor(r.cls); ctx.lineWidth = 1.5;
               ctx.strokeRect(w.x + g[0] * u, top + g[1] * u, g[2] * u, g[3] * u);
             });
