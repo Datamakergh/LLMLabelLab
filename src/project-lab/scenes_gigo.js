@@ -84,7 +84,7 @@ PROJECTS.push({
   reportTitle:'What the field test showed'});
 // the road project carries the self-driving car project's classes, guide and all nine pictures
 (function(){var d=PROJECTS.filter(function(p){return p.id==='drive'})[0],g={};for(var k in d)g[k]=d[k];
-  g.id='g_road';g.scn='road';g.name='Self-driving car: road safety';g.tag='Bounding box · GIGO scene';
+  g.id='g_road';delete g.hidden;g.scn='road';g.name='Self-driving car: road safety';g.tag='Bounding box · GIGO scene';
   g.blurb='Box cars, people, cyclists, lights and signs on a city street, then watch the car drive it in 2D or 3D.';
   g.source='https://datamaker.io/ko/blog/articles/review/occluded-object-recognition';PROJECTS.push(g)})();
 (function(){PROJECTS.forEach(function(p){if(p.scn)p.cmap=gMap(p.scn)});var d=PROJECTS.filter(function(p){return p.id==='drive'})[0];if(d){d.scn='road';d.cmap=DGC}})();

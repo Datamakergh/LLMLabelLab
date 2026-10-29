@@ -20,7 +20,7 @@ function route(){
   var gr=location.hash.match(/^#\/g\/(road|warehouse|drone|crop)$/);if(gr){location.replace('#/g_'+gr[1]);return}
   var gm=location.hash.match(/^#\/g\/(\w+)/),gs=gm&&GSC.filter(function(x){return x.id===gm[1]})[0];
   if(gs){P=null;cancelAnimationFrame(PL.raf);PL.on=false;$('listView').hidden=true;$('projView').hidden=false;document.body.classList.remove('inproj');$('projView').innerHTML='<div class="gframe"><a class="gback" href="#/">← All projects</a><iframe title="'+gs.name+'" src="gigo/play.html?scene='+gs.id+'&embed=1" loading="eager"></iframe></div>';window.scrollTo(0,0);return}
-  var m=location.hash.match(/^#\/(\w+)/),p=m&&PROJECTS.filter(function(x){return x.id===m[1]&&!x.hidden})[0];if(m&&(m[1]==='graze'||m[1]==='ppe')){location.replace(m[1]==='ppe'?'#/g_warehouse':'#/g_drone');return}
+  var m=location.hash.match(/^#\/(\w+)/),p=m&&PROJECTS.filter(function(x){return x.id===m[1]&&!x.hidden})[0];if(m&&(m[1]==='graze'||m[1]==='ppe'||m[1]==='drive')){location.replace(m[1]==='ppe'?'#/g_warehouse':m[1]==='drive'?'#/g_road':'#/g_drone');return}
   if(!p){$('listView').hidden=false;$('projView').hidden=true;document.body.classList.remove('inproj');P=null;renderList();window.scrollTo(0,0);return}
   openProject(p);
 }

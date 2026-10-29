@@ -28,7 +28,7 @@ function genDrive(i,test){
   return {art:art,gt:gt,gz:list,counts:{}};
 }
 PROJECTS.push({
-  id:'drive',name:'Self-driving car',icon:'🚗',type:'box',tag:'Bounding box',
+  id:'drive',hidden:true,name:'Self-driving car',icon:'🚗',type:'box',tag:'Bounding box',
   blurb:'Label the cars, people, cyclists, lights and signs on a city street, then watch the car drive that exact street.',
   client:'An autonomous-driving team trains a camera model for a city street. The car brakes only for what it has learned to see, and it learns only from the boxes you draw.',
   source:'gigo/play.html?scene=road',

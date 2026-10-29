@@ -4364,7 +4364,7 @@ function genDrive(i,test){
   return {art:art,gt:gt,gz:list,counts:{}};
 }
 PROJECTS.push({
-  id:'drive',name:'Self-driving car',icon:'🚗',type:'box',tag:'Bounding box',
+  id:'drive',hidden:true,name:'Self-driving car',icon:'🚗',type:'box',tag:'Bounding box',
   blurb:'Label the cars, people, cyclists, lights and signs on a city street, then watch the car drive that exact street.',
   client:'An autonomous-driving team trains a camera model for a city street. The car brakes only for what it has learned to see, and it learns only from the boxes you draw.',
   source:'gigo/play.html?scene=road',
@@ -4468,7 +4468,7 @@ PROJECTS.push({
   reportTitle:'What the field test showed'});
 // the road project carries the self-driving car project's classes, guide and all nine pictures
 (function(){var d=PROJECTS.filter(function(p){return p.id==='drive'})[0],g={};for(var k in d)g[k]=d[k];
-  g.id='g_road';g.scn='road';g.name='Self-driving car: road safety';g.tag='Bounding box · GIGO scene';
+  g.id='g_road';delete g.hidden;g.scn='road';g.name='Self-driving car: road safety';g.tag='Bounding box · GIGO scene';
   g.blurb='Box cars, people, cyclists, lights and signs on a city street, then watch the car drive it in 2D or 3D.';
   g.source='https://datamaker.io/ko/blog/articles/review/occluded-object-recognition';PROJECTS.push(g)})();
 (function(){PROJECTS.forEach(function(p){if(p.scn)p.cmap=gMap(p.scn)});var d=PROJECTS.filter(function(p){return p.id==='drive'})[0];if(d){d.scn='road';d.cmap=DGC}})();
@@ -5202,7 +5202,7 @@ function route(){
   var gr=location.hash.match(/^#\/g\/(road|warehouse|drone|crop)$/);if(gr){location.replace('#/g_'+gr[1]);return}
   var gm=location.hash.match(/^#\/g\/(\w+)/),gs=gm&&GSC.filter(function(x){return x.id===gm[1]})[0];
   if(gs){P=null;cancelAnimationFrame(PL.raf);PL.on=false;$('listView').hidden=true;$('projView').hidden=false;document.body.classList.remove('inproj');$('projView').innerHTML='<div class="gframe"><a class="gback" href="#/">← All projects</a><iframe title="'+gs.name+'" src="gigo/play.html?scene='+gs.id+'&embed=1" loading="eager"></iframe></div>';window.scrollTo(0,0);return}
-  var m=location.hash.match(/^#\/(\w+)/),p=m&&PROJECTS.filter(function(x){return x.id===m[1]&&!x.hidden})[0];if(m&&(m[1]==='graze'||m[1]==='ppe')){location.replace(m[1]==='ppe'?'#/g_warehouse':'#/g_drone');return}
+  var m=location.hash.match(/^#\/(\w+)/),p=m&&PROJECTS.filter(function(x){return x.id===m[1]&&!x.hidden})[0];if(m&&(m[1]==='graze'||m[1]==='ppe'||m[1]==='drive')){location.replace(m[1]==='ppe'?'#/g_warehouse':m[1]==='drive'?'#/g_road':'#/g_drone');return}
   if(!p){$('listView').hidden=false;$('projView').hidden=true;document.body.classList.remove('inproj');P=null;renderList();window.scrollTo(0,0);return}
   openProject(p);
 }
