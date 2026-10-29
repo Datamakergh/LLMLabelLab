@@ -70,7 +70,7 @@ function genPPE(i,test){
   return {art:art,gt:gt,workers:workers};
 }
 PROJECTS.push({
-  id:'ppe',name:'Safety equipment detection',icon:'🦺',type:'box',tag:'Bounding box',
+  id:'ppe',hidden:true,name:'Safety equipment detection',icon:'🦺',type:'box',tag:'Bounding box',
   blurb:'Teach a CCTV system to check helmets, vests, harnesses, boots, gloves and goggles, and to spot workers who are missing them.',
   client:'A construction company wants its cameras to raise an alert when a worker is on site missing protective equipment. The model learns from the boxes you draw, including boxes for what is missing: a bare head, a chest without a vest, shoes instead of boots and bare hands.',
   source:'https://datamaker.io/ko/blog/articles/review/safety-equipment',
