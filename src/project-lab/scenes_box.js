@@ -170,7 +170,7 @@ function genGraze(i,test){
   return {art:art,gt:gt,animals:animals};
 }
 PROJECTS.push({
-  id:'graze',name:'Grazing and wildlife monitoring',icon:'🦒',type:'box',tag:'Bounding box',
+  id:'graze',hidden:true,name:'Grazing and wildlife monitoring',icon:'🦒',type:'box',tag:'Bounding box',
   blurb:'Count cattle, goats and wildlife, and warn when a predator or an intruder shows up.',
   client:'A ranch and wildlife conservancy uses field cameras to count its animals each day. The system compares the count to the herd register, raises a predator alert when a lion, leopard or hyena is seen, and an intruder alert when a stranger walks in.',
   source:'',

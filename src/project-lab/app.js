@@ -13,14 +13,14 @@ var GSC=[{id:'llm',icon:'💬',tag:'Text labelling · GIGO scene',name:'LLM answ
 function renderList(){
   var best={};try{best=JSON.parse(localStorage.getItem('llp_best')||'{}')}catch(e){}
   var llm='<a class="pcard" href="index.html"><span class="pc-ic" aria-hidden="true">🧠</span><span class="pc-tag">LLM response labelling</span><h3>LLM Label Lab</h3><p>Rate and label AI answers for accuracy, tone and safety, with the full practice hub, points and leaderboard.</p><span class="pc-foot"><span>Class and practice mode</span><span class="pc-go">Open →</span></span></a>';
-  $('grid').innerHTML=llm+PROJECTS.map(function(p){var b=best[p.id];
+  $('grid').innerHTML=llm+PROJECTS.filter(function(p){return !p.hidden}).map(function(p){var b=best[p.id];
     return '<a class="pcard" href="#/'+p.id+'"><span class="pc-ic" aria-hidden="true">'+p.icon+'</span><span class="pc-tag">'+p.tag+'</span><h3>'+p.name+'</h3><p>'+p.blurb+'</p><span class="pc-foot">'+(b!=null?'<b>Best '+b+'%</b> on new scenes':'Not started')+'<span class="pc-go">Start →</span></span></a>'}).join('')+GSC.map(function(g){return '<a class="pcard" href="#/g/'+g.id+'"><span class="pc-ic" aria-hidden="true">'+g.icon+'</span><span class="pc-tag">'+g.tag+'</span><h3>'+g.name+'</h3><p>'+g.blurb+'</p><span class="pc-foot"><span>Label, run, see the outcome</span><span class="pc-go">Start →</span></span></a>'}).join('');
 }
 function route(){
   var gr=location.hash.match(/^#\/g\/(road|warehouse|drone|crop)$/);if(gr){location.replace('#/g_'+gr[1]);return}
   var gm=location.hash.match(/^#\/g\/(\w+)/),gs=gm&&GSC.filter(function(x){return x.id===gm[1]})[0];
   if(gs){P=null;cancelAnimationFrame(PL.raf);PL.on=false;$('listView').hidden=true;$('projView').hidden=false;document.body.classList.remove('inproj');$('projView').innerHTML='<div class="gframe"><a class="gback" href="#/">← All projects</a><iframe title="'+gs.name+'" src="gigo/play.html?scene='+gs.id+'&embed=1" loading="eager"></iframe></div>';window.scrollTo(0,0);return}
-  var m=location.hash.match(/^#\/(\w+)/),p=m&&PROJECTS.filter(function(x){return x.id===m[1]})[0];
+  var m=location.hash.match(/^#\/(\w+)/),p=m&&PROJECTS.filter(function(x){return x.id===m[1]&&!x.hidden})[0];if(m&&m[1]==='graze'){location.replace('#/g_drone');return}
   if(!p){$('listView').hidden=false;$('projView').hidden=true;document.body.classList.remove('inproj');P=null;renderList();window.scrollTo(0,0);return}
   openProject(p);
 }
