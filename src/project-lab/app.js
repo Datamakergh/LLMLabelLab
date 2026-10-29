@@ -350,7 +350,7 @@ function finishTrain(E){
   var scs=0,bad=0;for(var j=0;j<P.nTest;j++){ST.pred[j]=predictScene(j);var sc=sceneOf(P.nTrain+j),res=evalScene(sc,ST.pred[j]);scs+=res.score;bad+=REP[P.id](sc,ST.pred[j],P).bad?1:0}
   var run={q:E.q,s:scs/P.nTest,bad:bad,rushed:ST.rushed,touched:E.touched};ST.runs.push(run);
   try{var b=JSON.parse(localStorage.getItem('llp_best')||'{}'),v=Math.round(run.s*100);if(b[P.id]==null||v>b[P.id])b[P.id]=v;localStorage.setItem('llp_best',JSON.stringify(b))}catch(e){}
-  ST.sim.set='test';ST.sim.i=0;
+  if(P.scn){ST.sim.set='train';ST.sim.i=Math.min(ST.idx||0,P.nTrain-1)}else{ST.sim.set='test';ST.sim.i=0}
   $('tbar').style.width='100%';$('stepno').textContent='Training complete';
   logLine('Done. Model score on new '+(P.type==='text'?'messages':'scenes')+' '+Math.round(run.s*100)+'%','ok');
   sSave();renderSim();renderResults();
