@@ -158,8 +158,9 @@ function plCtl(){
 }
 
 // ===== Self-driving: the video is GIGO's driving simulator, built from the same objects as the labelled image =====
+function gUse(scn,sc){var G=window.GIGO;G.useScenario(scn);if(sc&&sc.pic!=null&&G.dr2Use&&scn==='drone2')G.dr2Use(sc.pic);if(sc)G.GROUND_TRUTH=sc.gz}
 function driveDet(sc,pred,Pj){
-  Pj=Pj||P;var G=window.GIGO;G.useScenario(Pj.scn);G.GROUND_TRUTH=sc.gz;
+  Pj=Pj||P;var G=window.GIGO;gUse(Pj.scn,sc);
   var boxes=pred.map(function(a,i){return {id:i,x:a.x*1.25,y:a.y*1.25,w:a.w*1.25,h:a.h*1.25,cls:Pj.cmap[a.c]}});
   var ev=(G.SCENARIO.evaluate||G.evaluate)(boxes,sc.gz);return {ev:ev,det:G.buildDetections(ev)};
 }
@@ -180,9 +181,9 @@ function plStartDrive(o){
   PL.dur=d.T+2.4;PL.on=true;PL.paused=false;PL.done=false;
   PL.hud=function(){var c={good:0,late:0,missed:0};Object.keys(PL.shown||{}).forEach(function(k){c[PL.shown[k]]++});return '<span class="k ok">'+c.good+' detected</span><span class="k warn">'+c.late+' weak</span><span class="k bad">'+c.missed+' missed</span>'};
   PL.reset=function(){
-    G.useScenario(P.scn);G.GROUND_TRUTH=o.sc.gz;
+    gUse(P.scn,o.sc);
     box.innerHTML='<div class="drv"><div class="drvimg"><canvas id="drvcv" class="cv drvcv" width="800" height="500" aria-label="Driving simulation"></canvas>'
-      +'<div class="plcnt" id="plcnt" style="'+(P.scn==='drone'||P.scn==='crop'?'top:8px;bottom:auto':'bottom:22px')+'"></div>'+(d.SC.has3d?'<button type="button" id="drv3d" class="btn sm" style="position:absolute;top:8px;right:8px;z-index:3">3D view</button>':'')+'</div></div><div class="pltoasts" id="pltoasts" hidden></div><div class="plban" id="plban" hidden></div>';
+      +'<div class="plcnt" id="plcnt" style="'+(P.scn==='drone2'||P.scn==='crop'?'top:8px;bottom:auto':'bottom:22px')+'"></div>'+(d.SC.has3d?'<button type="button" id="drv3d" class="btn sm" style="position:absolute;top:8px;right:8px;z-index:3">3D view</button>':'')+'</div></div><div class="pltoasts" id="pltoasts" hidden></div><div class="plban" id="plban" hidden></div>';
     PL.sim=d.S.create(d.det);PL.simT=0;PL.view=new G[d.SC.view]($('drvcv'));if(d.SC.has3d){PL.view.setMode(PL.m3||'2d');var b3=$('drv3d');if(b3){b3.textContent=PL.m3==='3d'?'2D view':'3D view';b3.onclick=function(){PL.m3=PL.m3==='3d'?'2d':'3d';PL.view.setMode(PL.m3);b3.textContent=PL.m3==='3d'?'2D view':'3D view';PL.view.draw(PL.sim,d.det)}}}PL.shown={};PL.i=0;PL.ri=0;PL.cnt={};$('report').innerHTML='';
   };
   PL.last=performance.now();
@@ -192,7 +193,7 @@ function plStartDrive(o){
 }
 function plDriveAdvance(){
   var G=window.GIGO,d=PL.D,s=PL.sim,S=d.S,target=Math.min(PL.t,d.T+.5),k=0;
-  G.useScenario(P.scn);G.GROUND_TRUTH=PL.sc.gz;
+  gUse(P.scn,PL.sc);
   while(PL.simT+1/60<=target&&k++<60000){S.step(s,1/60);PL.simT+=1/60}
   if(d.road){
     var f=S.front(s);

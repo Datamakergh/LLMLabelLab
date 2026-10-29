@@ -26,7 +26,7 @@ window.GIGO = window.GIGO || {};
       objs: [], tally: {}, truth: {}, alert: null,
       stats: { alertsMissed: 0, lateAlerts: 0, missed: 0, mixups: 0, uncertain: 0 }
     };
-    G.DRONE_SPECIES.forEach(function (sp) { s.tally[sp] = 0; s.truth[sp] = 0; });
+    (G.SCENARIO.species || G.DRONE_SPECIES).forEach(function (sp) { s.tally[sp] = 0; s.truth[sp] = 0; });
     G.GROUND_TRUTH.forEach(function (g) {
       var d = det[g.id] || { mode: 'missed' };
       if (s.truth[g.cls] != null) s.truth[g.cls] += 1;
@@ -97,7 +97,7 @@ window.GIGO = window.GIGO || {};
     else if (st.missed || st.mixups || st.uncertain) s.outcome = 'warnings';
     else s.outcome = 'safe';
     var counted = 0, total = 0;
-    G.DRONE_SPECIES.forEach(function (sp) { total += s.truth[sp]; });
+    (G.SCENARIO.species || G.DRONE_SPECIES).forEach(function (sp) { total += s.truth[sp]; });
     s.objs.forEach(function (o) { if (!o.g.critical || o.g.cls === 'Lion') { if (s.results[o.id] === 'counted' || s.results[o.id] === 'uncertain' || s.results[o.id] === 'alert' || s.results[o.id] === 'late_alert') counted++; } });
     s.summary = 'Correct counts: ' + counted + ' of ' + total + ' animals.';
     note(s, s.outcome === 'safe' ? 'ok' : s.outcome === 'warnings' ? 'warn' : 'bad', G.MESSAGES.outcomes[s.outcome].label + '. ' + s.summary);

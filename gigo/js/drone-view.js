@@ -24,13 +24,13 @@ window.GIGO = window.GIGO || {};
   var BAR = 76;   // height of the census strip along the bottom of the map
 
   function panel(ctx, s, W, H) {
-    var y0 = H - BAR, cw = 124, x, y;
+    var y0 = H - BAR, sps = G.SCENARIO.species || G.DRONE_SPECIES, two = sps.length > 6, cols = two ? Math.ceil(sps.length / 2) : sps.length, cw = two ? Math.floor((W - 220) / cols) : 124, x, y;
     ctx.fillStyle = 'rgba(15,23,42,.92)'; ctx.fillRect(0, y0, W, BAR);
     ctx.textBaseline = 'alphabetic';
     ctx.fillStyle = '#94a3b8'; ctx.font = '800 10px system-ui'; ctx.textAlign = 'left'; ctx.fillText('LIVE CENSUS  (AI / TRUE)', 16, y0 + 18);
-    G.DRONE_SPECIES.forEach(function (sp, i) {
+    sps.forEach(function (sp, i) {
       var ai = s.tally[sp], tr = s.truth[sp], c = G.classColor(sp), max = 4, bw = cw - 14;
-      x = 16 + i * cw; y = y0 + 32;
+      x = 16 + (two ? i % cols : i) * cw; y = two ? y0 + 20 + Math.floor(i / cols) * 27 : y0 + 32;
       ctx.textAlign = 'left'; ctx.fillStyle = '#e2e8f0'; ctx.font = '600 12px system-ui'; ctx.fillText(sp, x, y + 8);
       ctx.textAlign = 'right'; ctx.font = '800 12px system-ui';
       ctx.fillStyle = s.done ? (ai === tr ? '#4ade80' : '#fbbf24') : '#fff'; ctx.fillText(ai + ' / ' + tr, x + bw, y + 8);
@@ -38,7 +38,7 @@ window.GIGO = window.GIGO || {};
       ctx.fillStyle = 'rgba(148,163,184,.35)'; G.roundRect(ctx, x, y + 14, bw * tr / max, 6, 3); ctx.fill();
       if (ai) { ctx.fillStyle = c; G.roundRect(ctx, x, y + 14, bw * Math.min(ai, max) / max, 6, 3); ctx.fill(); }
     });
-    x = 16 + G.DRONE_SPECIES.length * cw + 8; y = y0 + 18;
+    x = 16 + cols * cw + 8; y = y0 + 18;
     ctx.fillStyle = '#94a3b8'; ctx.font = '800 10px system-ui'; ctx.textAlign = 'left'; ctx.fillText('ALERTS', x, y);
     y += 8;
     G.GROUND_TRUTH.filter(function (g) { return g.critical; }).forEach(function (g) {

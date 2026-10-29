@@ -40,6 +40,7 @@ function cropObjects(i,test){
 function gGen(scn,objs){return function(i,test){
   var G=window.GIGO,gz,art;
   if(scn==='warehouse'){var pic=G.whPictures()[test?P.nTrain+i:i];gz=gDeep(pic.gt);art=pic.img?'<image href="'+pic.img+'" x="0" y="0" width="640" height="400" preserveAspectRatio="none"/>':gCanvasArt('warehouse',gz)}
+  else if(scn==='drone2'){var di=test?P.nTrain+i:i,dp=G.DR_PICS[di];gz=gDeep(dp.gt);art='<image href="'+dp.img+'" x="0" y="0" width="640" height="400" preserveAspectRatio="none"/>';return {art:art,gt:gBoxes(gz),gz:gz,counts:{},pic:di}}
   else{gz=objs(i,test);art=gCanvasArt(scn,gz)}
   return {art:art,gt:gBoxes(gz),gz:gz,counts:{}}}}
 var GFLOW={guide:['Box each object tight, from edge to edge.','One box per object.','Pick the right class for every box.','Box every object that matters, even small ones.'],pt:'GIGO scene'};
@@ -56,16 +57,16 @@ PROJECTS.push({
   tips:{person:'Box every worker. A missed person walks in unchecked.',hardhat:'Box the hat only when it is on a head.',goggles:'Small and easy to miss.',safetyvest:'Box the vest on the chest.',safetyboots:'Both feet in one box.'},
   reportTitle:'What the safety gate did'});
 PROJECTS.push({
-  id:'g_drone',scn:'drone',name:'Drone wildlife census',icon:'🦁',type:'box',tag:'Bounding box · GIGO scene',
-  blurb:'Box and name every animal from the air, then watch the drone count the herd and send alerts for predators and poachers.',
-  client:'Rangers in the Maasai Mara fly a drone over the savanna to count wildlife and spot threats. It counts only what you label.',
+  id:'g_drone',scn:'drone2',name:'Drone wildlife census',icon:'🦁',type:'box',tag:'Bounding box · GIGO scene',
+  blurb:'Box and name every animal in the paddock, then watch the drone fly the survey, count the herd and send alerts for predators and intruders.',
+  client:'Rangers fly a drone over grazing land to count livestock and wildlife and spot threats. It counts only what you label.',
   source:'https://datamaker.io/ko/blog/articles/review/drone-object-recognition-ai-model',
-  classes:gClasses('drone',{'Elephant':'A large grey animal seen from above, with ears and trunk.','Zebra':'A striped animal about the size of a horse.','Giraffe':'A long-necked animal with patches. Box the whole body.','Wildebeest':'A dark, hump-shouldered animal with horns.','Lion':'A tawny big cat. A lion near the cattle boma is a threat.','Person':'A person on foot. A person setting snares is a poaching threat.'}),
-  guide:['Box every animal and person, tight.','Choose the right species. Zebra and wildebeest look alike from above.','Label the lion and the person first: they trigger alerts.','One box per animal.'],
-  traps:['Zebra versus wildebeest from above.','A person is small and easy to miss.','A calf is a separate animal.'],
-  gigo:'If you miss the lion or the person with snares, no alert is sent. A wrong species skews the count.',
-  nTrain:4,nTest:2,gen:gGen('drone',droneObjects),
-  tips:{elephant:'Calves count too.',zebra:'Look for stripes.',giraffe:'Box the whole body.',wildebeest:'Not a zebra: no stripes.',lion:'A threat near the boma.',person:'A poacher trigger an alert.'},
+  classes:gClasses('drone2',{'Elephant':'A very large grey animal with ears and a trunk.','Zebra':'A striped, horse-like animal.','Giraffe':'A long-necked animal with patches. Box the whole body.','Wildebeest':'A dark, hump-shouldered animal with horns and a beard.','Cattle':'A black-and-white or brown cow.','Goat':'A small, tan, horned animal with a beard.','Buffalo':'A heavy dark animal with broad curved horns.','Rhino':'A grey animal with a horn on its snout.','Lion':'A tawny big cat. A lion near the herd is a threat.','Person':'An armed intruder on foot. Box the whole person.'}),
+  guide:['Box every animal and person, tight.','Choose the right species: zebra and wildebeest, or cattle and buffalo, look alike at a glance.','Label the lion and the intruder first: they trigger alerts.','One box per animal.'],
+  traps:['Cattle versus buffalo: buffalo are darker with wide horns.','Goats are small and can hide behind other animals.','The intruder is small. Do not miss them.'],
+  gigo:'If you miss the lion or the intruder, no alert is sent. A wrong species skews the count.',
+  nTrain:4,nTest:2,gen:gGen('drone2'),
+  tips:{elephant:'Calves count too.',zebra:'Look for stripes.',giraffe:'Box the whole body.',wildebeest:'Not a zebra: no stripes.',cattle:'Cows and calves.',goat:'Small and tan.',buffalo:'Darker, with wide horns.',rhino:'Look for the horn.',lion:'A threat to the herd.',person:'An intruder triggers an alert.'},
   reportTitle:'What the drone did'});
 PROJECTS.push({
   id:'g_crop',scn:'crop',name:'Maize disease scout',icon:'🌽',type:'box',tag:'Bounding box · GIGO scene',
