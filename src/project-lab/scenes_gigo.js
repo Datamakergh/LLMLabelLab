@@ -65,7 +65,7 @@ PROJECTS.push({
   guide:['Box every animal and person, tight.','Choose the right species: zebra and wildebeest, or cattle and buffalo, look alike at a glance.','Label the predators and the poacher first: they trigger alerts.','One box per animal.'],
   traps:['Cattle versus buffalo: buffalo are darker with wide horns.','Goats are small and can hide behind other animals.','The poacher is small. Do not miss them.','A scarecrow looks like a person but is a Scarecrow, not a poacher.'],
   gigo:'If you miss a predator or the poacher, no alert is sent. A wrong species skews the count.',
-  nTrain:4,nTest:2,gen:gGen('drone2'),
+  nTrain:10,nTest:2,gen:gGen('drone2'),
   tips:{elephant:'Calves count too.',zebra:'Look for stripes.',giraffe:'Box the whole body.',wildebeest:'Not a zebra: no stripes.',cattle:'Cows and calves.',goat:'Small and tan.',buffalo:'Darker, with wide horns.',rhino:'Look for the horn.',lion:'A threat to the herd.',hyena:'Sloping back, spotted coat.',leopard:'Spotted big cat.',poacher:'A poacher triggers an alert.',scarecrow:'Looks like a person, but it is a scarecrow.'},
   reportTitle:'What the drone did'});
 PROJECTS.push({
