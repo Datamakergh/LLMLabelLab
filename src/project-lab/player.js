@@ -74,7 +74,9 @@ function plTextMarkup(sc,ann){
 }
 // ---------- player
 function plStart(o){
+  PL.lane=false;
   if(P.scn)return plStartDrive(o);
+  if(P.id==='lane')return plStartLane(o);
   PL.drive=false;if(PL.drvInit){PL.drvInit=0;PL.speed=1}
   // o: {sc,ann,res,rep,mode:'play'|'static'|'keep'}
   var box=$('simview');PL.box=box;PL.sc=o.sc;PL.ann=o.ann;PL.res=o.res;
@@ -191,7 +193,53 @@ function plStartDrive(o){
   if(o.mode==='static'){PL.on=false;return}
   if(PL.t<PL.dur)PL.raf=requestAnimationFrame(plFrame);
 }
+
+// ===== Lane assist: a car drives down the road from the labelled picture, steered by the lines the model learned =====
+function laneSim(sc,pred){
+  var lp=sc.lp,cb=(lp.bl+lp.br)/2,d0=cb-320,half=(lp.br-lp.bl)*.3;
+  var lines=pred.filter(function(l){return l.pts&&l.pts.length>1});
+  var on=lines.length>=2,b=0;
+  if(on){var xs=lines.map(function(l){return l.pts.slice().sort(function(a,c){return c[1]-a[1]})[0][0]}).sort(function(a,c){return a-c});b=(xs[0]+xs[xs.length-1])/2-cb}
+  var T=8,dt=1/30,d=d0,tr=[],out=null,off=null,drift=(d0>=0?1:-1)*38;
+  for(var k=0;k<=T/dt;k++){var t=k*dt,v=on?-2.4*(d+b):drift;d+=v*dt;tr.push({d:d,v:v});if(out==null&&Math.abs(d)>half)out=t;}
+  return {lp:lp,d0:d0,tr:tr,dt:dt,T:T,on:on,b:b,half:half,out:out};
+}
+function plStartLane(o){
+  var L=laneSim(o.sc,o.ann);cancelAnimationFrame(PL.raf);clearTimeout(PL.doneTimer);
+  var box=$('simview');PL.box=box;PL.sc=o.sc;PL.ann=o.ann;PL.res=o.res;PL.L=L;PL.drive=true;PL.lane=true;PL.cam=false;PL.items=[];PL.items_g=null;PL.beam=null;PL.endScan=0;PL.S=1;
+  if(!PL.drvInit){PL.drvInit=1;PL.speed=.5}
+  var keepT=o.mode==='keep'?PL.t:0;
+  var tmp=document.createElement('ul');tmp.innerHTML=o.rep.html;var rows=[].slice.call(tmp.children);
+  PL.rows=rows;PL.rowT=rows.map(function(r,i){return Math.min(L.T,(L.out!=null?L.out:L.T*.55)+i*.4)});
+  PL.dur=L.T+1.6;PL.on=true;PL.paused=false;PL.done=false;
+  PL.hud=function(){var d=PL.laneD||0;return '<span class="k '+(L.on?'ok':'bad')+'">'+(L.on?'Lane assist ON':'Lane assist OFF')+'</span><span class="k '+(Math.abs(d)>L.half?'bad':Math.abs(d)>L.half*.5?'warn':'ok')+'">'+(Math.abs(d)>L.half?'Left the lane':'In lane')+'</span>'};
+  PL.reset=function(){
+    box.innerHTML='<div class="drv"><div class="drvimg"><svg id="lnsv" class="cv" viewBox="0 0 640 400" preserveAspectRatio="xMidYMid meet" style="width:100%;height:auto;display:block;background:#7dd3fc"><g id="lnrd"></g><g id="lnov"></g><g id="lncar"></g></svg>'
+      +'<div class="plcnt" id="plcnt" style="bottom:22px"></div></div></div><div class="pltoasts" id="pltoasts" hidden></div><div class="plban" id="plban" hidden></div>';
+    PL.i=0;PL.ri=0;PL.laneShown=0;PL.laneWarn=0;$('report').innerHTML='';
+  };
+  PL.last=performance.now();
+  plSeek(o.mode==='static'?PL.dur:keepT);plCtl();
+  if(o.mode==='static'){PL.on=false;return}
+  if(PL.t<PL.dur)PL.raf=requestAnimationFrame(plFrame);
+}
+function plLaneAdvance(){
+  var L=PL.L,lp=L.lp,t=Math.min(PL.t,L.T),k=Math.min(L.tr.length-1,Math.round(t/L.dt)),st=L.tr[k],d=st.d;PL.laneD=d;
+  var sh=L.d0-d,ph=(t*2.6)%2,rot=Math.max(-7,Math.min(7,st.v*.12));
+  $('lnrd').innerHTML=laneFrame(lp,sh,ph);
+  var ov='';
+  if(PL.t>.6){
+    var al=Math.min(1,(PL.t-.6)/.5);
+    function sf(pts){return pts.map(function(p){var ty=Math.max(0,Math.min(1,(p[1]-lp.vy)/(400-lp.vy)));return [p[0]-sh*ty,p[1]]})}
+    PL.ann.forEach(function(a,i){var kd=PL.res.kind[i]&&PL.res.kind[i].k||'ok';ov+=pline(sf(a.pts),KC[kd]||KC.ok,5,{opacity:.9*al,'stroke-dasharray':(kd==='extra'||kd==='decoy')?'8 6':'none'})});
+    PL.res.missed.forEach(function(g){ov+=pline(sf(g.pts),'#64748b',3,{opacity:.9*al,'stroke-dasharray':'6 6'})});
+  }
+  $('lnov').innerHTML=ov;$('lncar').innerHTML=laneCar(rot);
+  if(PL.t>.8&&!PL.laneShown){PL.laneShown=1;plToastAdd(L.on?{k:'ok',t:'Lane lines found: '+PL.ann.length}:{k:'bad',t:'No lane found. Lane assist is off.'})}
+  if(L.out!=null&&PL.t>=L.out&&!PL.laneWarn){PL.laneWarn=1;plToastAdd({k:'bad',t:'Lane departure! The car left its lane.'})}
+}
 function plDriveAdvance(){
+  if(PL.lane)return plLaneAdvance();
   var G=window.GIGO,d=PL.D,s=PL.sim,S=d.S,target=Math.min(PL.t,d.T+.5),k=0;
   gUse(P.scn,PL.sc);
   while(PL.simT+1/60<=target&&k++<60000){S.step(s,1/60);PL.simT+=1/60}
