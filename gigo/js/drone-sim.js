@@ -49,7 +49,7 @@ window.GIGO = window.GIGO || {};
       if (g.critical) { s.results[g.id] = 'alert_missed'; s.stats.alertsMissed += 1; note(s, 'bad', 'Seen as "' + o.label + '": no alert for the ' + g.short + '.', g.id); }
       else {
         s.results[g.id] = 'mixup'; s.stats.mixups += 1;
-        note(s, 'warn', (o.label === 'Person' ? 'False poaching alert: ' : 'Mix-up: ') + g.cls.toLowerCase() + ' counted as ' + o.label.toLowerCase() + '.', g.id);
+        note(s, 'warn', ((o.label === 'Person' || o.label === 'Poacher') ? 'False poaching alert: ' : 'Mix-up: ') + g.cls.toLowerCase() + ' counted as ' + o.label.toLowerCase() + '.', g.id);
       }
       return;
     }
