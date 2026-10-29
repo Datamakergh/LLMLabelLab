@@ -4222,7 +4222,7 @@ function genCrop(i,test){
   return {art:art,gt:gt};
 }
 PROJECTS.push({
-  id:'crop',name:'Crop pest and disease',icon:'🌿',type:'box',tag:'Bounding box',
+  id:'crop',hidden:true,name:'Crop pest and disease',icon:'🌿',type:'box',tag:'Bounding box',
   blurb:'Box leaf spots, rust and insects so a farm app can recommend what to spray.',
   client:'A farm advice app diagnoses what is wrong with a crop from a leaf photo. The diagnosis is only as good as the boxes it was trained on.',
   source:'https://datamaker.io/ko/blog/articles/review/crop-pest-disease-recognition',
@@ -5202,7 +5202,7 @@ function route(){
   var gr=location.hash.match(/^#\/g\/(road|warehouse|drone|crop)$/);if(gr){location.replace('#/g_'+gr[1]);return}
   var gm=location.hash.match(/^#\/g\/(\w+)/),gs=gm&&GSC.filter(function(x){return x.id===gm[1]})[0];
   if(gs){P=null;cancelAnimationFrame(PL.raf);PL.on=false;$('listView').hidden=true;$('projView').hidden=false;document.body.classList.remove('inproj');$('projView').innerHTML='<div class="gframe"><a class="gback" href="#/">← All projects</a><iframe title="'+gs.name+'" src="gigo/play.html?scene='+gs.id+'&embed=1" loading="eager"></iframe></div>';window.scrollTo(0,0);return}
-  var m=location.hash.match(/^#\/(\w+)/),p=m&&PROJECTS.filter(function(x){return x.id===m[1]&&!x.hidden})[0];if(m&&(m[1]==='graze'||m[1]==='ppe'||m[1]==='drive')){location.replace(m[1]==='ppe'?'#/g_warehouse':m[1]==='drive'?'#/g_road':'#/g_drone');return}
+  var m=location.hash.match(/^#\/(\w+)/),p=m&&PROJECTS.filter(function(x){return x.id===m[1]&&!x.hidden})[0];if(m&&(m[1]==='graze'||m[1]==='ppe'||m[1]==='drive'||m[1]==='crop')){location.replace(m[1]==='ppe'?'#/g_warehouse':m[1]==='drive'?'#/g_road':m[1]==='crop'?'#/g_crop':'#/g_drone');return}
   if(!p){$('listView').hidden=false;$('projView').hidden=true;document.body.classList.remove('inproj');P=null;renderList();window.scrollTo(0,0);return}
   openProject(p);
 }

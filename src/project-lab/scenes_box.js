@@ -229,7 +229,7 @@ function genCrop(i,test){
   return {art:art,gt:gt};
 }
 PROJECTS.push({
-  id:'crop',name:'Crop pest and disease',icon:'🌿',type:'box',tag:'Bounding box',
+  id:'crop',hidden:true,name:'Crop pest and disease',icon:'🌿',type:'box',tag:'Bounding box',
   blurb:'Box leaf spots, rust and insects so a farm app can recommend what to spray.',
   client:'A farm advice app diagnoses what is wrong with a crop from a leaf photo. The diagnosis is only as good as the boxes it was trained on.',
   source:'https://datamaker.io/ko/blog/articles/review/crop-pest-disease-recognition',
