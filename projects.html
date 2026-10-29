@@ -446,7 +446,1335 @@ ul.glist{list-style:disc inside}
 <section id="projView" hidden></section>
 </main>
 <div class="toast" id="toast" hidden role="status"></div>
-<script>// ---- helpers
+<script>/* GIGO – configuration: classes, thresholds and the predefined ground truth.
+ * Edit this file to change the scene objects, scoring thresholds or feedback wording.
+ * All coordinates are in scene pixels (800 x 500). */
+window.GIGO = window.GIGO || {};
+(function (G) {
+  'use strict';
+
+  G.CLASSES = [
+    { id: 'Car', color: '#3b82f6', key: '1' },
+    { id: 'Pedestrian', color: '#f59e0b', key: '2' },
+    { id: 'Bicycle', color: '#10b981', key: '3' },
+    { id: 'Traffic Light', color: '#ef4444', key: '4' },
+    { id: 'Traffic Sign', color: '#a855f7', key: '5' }
+  ];
+  G.classColor = function (cls) {
+    for (var i = 0; i < G.CLASSES.length; i++) if (G.CLASSES[i].id === cls) return G.CLASSES[i].color;
+    return '#64748b';
+  };
+
+  G.SCENE = { width: 800, height: 500, horizon: 190 };
+
+  G.THRESHOLDS = {
+    match: 0.3,        // IoU needed for a box to count as "on" an object
+    good: 0.75,          // IoU at/above which the simulated AI detects the object reliably
+    fullCredit: 0.8,     // IoU at/above which an object earns full box credit
+    wrongClassFactor: 0.4,
+    duplicatePenalty: 3, // points lost per duplicate box
+    spuriousPenalty: 4,  // points lost per box on nothing
+    bands: [
+      { id: 'excellent', min: 90, label: 'Excellent', risk: 'Low risk', color: '#16a34a' },
+      { id: 'good', min: 70, label: 'Good', risk: 'Mostly safe', color: '#65a30d' },
+      { id: 'partial', min: 40, label: 'Partial', risk: 'Elevated risk', color: '#d97706' },
+      { id: 'poor', min: 0, label: 'Poor', risk: 'High risk', color: '#dc2626' }
+    ]
+  };
+
+  /* Ground truth. `critical` objects change how the simulated car drives.
+   * `art` drives the drawing in scene.js. `sim` places the object on the road in simulator.js.
+   * `warn` is the consequence shown when a non-critical object is missed. */
+  G.GROUND_TRUTH = [
+    { id: 'car_ahead', name: 'Car ahead (braking)', short: 'braking car ahead', cls: 'Car', critical: true,
+      box: { x: 420, y: 222, w: 96, h: 66 }, art: { kind: 'car', color: '#c0392b', braking: true },
+      sim: { type: 'lead', x: 3150, w: 70, h: 36 } },
+    { id: 'ped_cross', name: 'Pedestrian on crosswalk', short: 'pedestrian on the crosswalk', cls: 'Pedestrian', critical: true,
+      box: { x: 500, y: 325, w: 40, h: 100 }, art: { kind: 'ped', shirt: '#e67e22', pants: '#2c3e50', hair: '#3b2a20' },
+      sim: { type: 'crosser', x: 1950, y0: 70, y1: 295, speed: 60, trigger: 425, w: 18, h: 18 } },
+    { id: 'cyclist', name: 'Cyclist crossing', short: 'cyclist crossing the road', cls: 'Bicycle', critical: true,
+      box: { x: 190, y: 335, w: 90, h: 85 }, art: { kind: 'bike', color: '#10b981', shirt: '#0ea5e9', pants: '#1e293b' },
+      sim: { type: 'crosser', x: 1300, y0: 70, y1: 295, speed: 90, trigger: 283, w: 12, h: 34 } },
+    { id: 'traffic_light', name: 'Red traffic light', short: 'red traffic light', cls: 'Traffic Light', critical: true,
+      box: { x: 575, y: 105, w: 30, h: 80 }, art: { kind: 'light' },
+      sim: { type: 'light', x: 2600, w: 16, h: 44 } },
+    { id: 'speed_sign', name: 'Speed-limit sign', short: 'speed-limit sign', cls: 'Traffic Sign',
+      box: { x: 660, y: 205, w: 44, h: 44 }, art: { kind: 'sign', sign: 'speed' },
+      sim: { type: 'static', x: 700, y: 282, w: 22, h: 22 },
+      warn: 'Speed limit not detected, so the vehicle kept driving above the limit.' },
+    { id: 'school_sign', name: 'School-zone sign', short: 'school-zone sign', cls: 'Traffic Sign',
+      box: { x: 230, y: 160, w: 40, h: 40 }, art: { kind: 'sign', sign: 'school' },
+      sim: { type: 'static', x: 1550, y: 78, w: 22, h: 22 },
+      warn: 'School-zone sign not detected, so the vehicle did not slow down.' },
+    { id: 'ped_right', name: 'Pedestrian on pavement (right)', short: 'pedestrian on the pavement', cls: 'Pedestrian',
+      box: { x: 690, y: 290, w: 32, h: 88 }, art: { kind: 'ped', shirt: '#8e44ad', pants: '#34495e', hair: '#222' },
+      sim: { type: 'walker', x: 3500, y: 292, vx: -25, w: 18, h: 18 },
+      warn: 'Pedestrian on the pavement not tracked, so the AI could not anticipate them stepping out.' },
+    { id: 'ped_left', name: 'Child near kerb (left)', short: 'child near the kerb', cls: 'Pedestrian',
+      box: { x: 20, y: 330, w: 34, h: 90 }, art: { kind: 'ped', shirt: '#e74c3c', pants: '#2980b9', hair: '#7a4a21' },
+      sim: { type: 'walker', x: 900, y: 292, vx: 20, w: 16, h: 16 },
+      warn: 'Child near the kerb not tracked, so the vehicle gave no extra room.' },
+    { id: 'parked_car', name: 'Parked car', short: 'parked car', cls: 'Car',
+      box: { x: 40, y: 235, w: 110, h: 75 }, art: { kind: 'car', color: '#7f8c8d' },
+      sim: { type: 'static', x: 450, y: 288, w: 70, h: 34 },
+      warn: 'Parked car not detected, so the vehicle passed with no clearance planned.' },
+    { id: 'oncoming', name: 'Oncoming car', short: 'oncoming car', cls: 'Car',
+      box: { x: 290, y: 232, w: 80, h: 54 }, art: { kind: 'car', color: '#2c3e50', front: true },
+      sim: { type: 'oncoming', spawnAfter: 2050, offset: 700, speed: 150, y: 140, w: 70, h: 36 },
+      warn: 'Oncoming car not tracked, so the AI had no awareness of traffic in the other lane.' }
+  ];
+
+  G.MESSAGES = {
+    outcomes: {
+      safe: { label: 'Completed safely', tone: 'good', text: 'Saw everything, stopped in time.' },
+      warnings: { label: 'Completed with warnings', tone: 'warn', text: 'Finished, but weak or missed detections caused warnings.' },
+      near_miss: { label: 'Near miss', tone: 'bad', text: 'Late detection: a narrow escape or a broken rule.' },
+      collision: { label: 'Simulated collision', tone: 'bad', text: 'A missed object meant the car never reacted.' }
+    },
+    core: 'Garbage in, garbage out. Better labels make better AI.',
+    disclaimer: 'Educational simulation driven by simple rules, not a real AI model.'
+  };
+
+  /* Scenarios. Each one supplies its own classes, ground truth, simulation wording and page text;
+   * G.useScenario(id) swaps them into the globals the rest of the app reads (G.CLASSES, G.GROUND_TRUTH, ...).
+   * `sim` / `view` name the simulation core and renderer (resolved at runtime, so later files can define them). */
+  G.SCENARIOS = {
+    road: {
+      id: 'road', label: 'Road', tagline: 'Train the AI, Drive the Car',
+      classes: G.CLASSES, groundTruth: G.GROUND_TRUTH, outcomes: G.MESSAGES.outcomes, disclaimer: G.MESSAGES.disclaimer,
+      sim: 'Sim', view: 'SimView', has3d: true,
+      card: { issue: 'Road safety', title: 'Self-driving car', place: 'City street', blurb: 'Label road users so the car brakes for the right things.',
+        tags: ['Object detection', '2D + 3D sim'] },
+      outcomeLabel: 'Driving outcome',
+      task: 'Box all 10 objects, then run the drive.',
+      purpose: 'A self-driving car only brakes for what it has learned to see. This project shows how sloppy or missing labels on cars, pedestrians, cyclists and traffic lights become near misses and crashes on the road, so safer training data saves lives.',
+      annotLabel: 'Road scene to annotate',
+      simTitle: 'Driving simulator',
+      simLabel: 'Top-down driving simulation',
+      idle: '<strong>The car is waiting.</strong><p>It only sees what you labelled.</p>',
+      resultTitle: 'Driving result', resultEmpty: 'Run to see the drive.',
+      stats: [['Collisions', 'collisions'], ['Near misses', 'nearMisses'], ['Red lights run', 'violations'], ['Late detections', 'lateBrakes'], ['Warnings', 'warnings']],
+      critical: {
+        collision: 'So the car hit the {short}.',
+        near_miss: 'So the car saw the {short} late: near miss.',
+        violation: 'So the car ran the red light.',
+        late_brake: 'So the car braked late for the {short}.',
+        not_reached: 'The drive ended earlier, but the {short} was also a risk.'
+      },
+      minor: { not_reached: 'The drive ended before reaching this object.' },
+      advice: {
+        critical: 'Start with people and traffic lights: missing them is the most dangerous error.',
+        wrongClass: 'Check the class on every box. Pedestrians, cyclists and signs are easy to mix up.',
+        allGood: 'Every object found and tightly boxed. The car drove safely.'
+      }
+    }
+  };
+
+  G.useScenario = function (id) {
+    var s = G.SCENARIOS[id];
+    G.SCENARIO = s;
+    G.CLASSES = s.classes;
+    G.GROUND_TRUTH = s.groundTruth;
+    G.MESSAGES.outcomes = s.outcomes;
+    G.MESSAGES.disclaimer = s.disclaimer;
+    return s;
+  };
+  G.useScenario('road');
+})(window.GIGO);
+
+/* GIGO – driving simulation core. Pure state machine (no DOM, no canvas): drawn by sim-view.js.
+ * Top-down 2D world; the ego car drives left to right in the lower lane.
+ * Each critical object is "detected" according to the annotation verdict:
+ *   good   -> seen early, comfortable braking
+ *   late   -> seen late (loose box), delayed reaction, hard braking
+ *   missed -> never seen, no reaction */
+window.GIGO = window.GIGO || {};
+(function (G) {
+  'use strict';
+
+  var ROAD = { top: 100, bottom: 260, mid: 180, egoY: 220, swTop: 70, swBot: 290 };
+  var P = {
+    cruise: 170, accel: 85, comfDecel: 100, maxDecel: 320,
+    egoLen: 70, egoW: 36, margin: 45, nearMiss: 28,
+    range: { good: 380, late: 130 }, delay: { good: 0, late: 0.35 },
+    finishX: 3850, crashHold: 2.2, lightWait: 2, maxTime: 150
+  };
+
+  function rectOf(a) { return { l: a.x - a.w / 2, r: a.x + a.w / 2, t: a.y - a.h / 2, b: a.y + a.h / 2 }; }
+  function egoRect(s) { return { l: s.ego.x - P.egoLen / 2, r: s.ego.x + P.egoLen / 2, t: ROAD.egoY - P.egoW / 2, b: ROAD.egoY + P.egoW / 2 }; }
+  function overlap(a, b) { return a.l < b.r && a.r > b.l && a.t < b.b && a.b > b.t; }
+  function rectGap(a, b) {
+    var dx = Math.max(0, b.l - a.r, a.l - b.r), dy = Math.max(0, b.t - a.b, a.t - b.b);
+    return Math.sqrt(dx * dx + dy * dy);
+  }
+  function front(s) { return s.ego.x + P.egoLen / 2; }
+  function refX(a) { return a.type === 'light' ? a.x : a.x - a.w / 2; }
+  function note(s, kind, text, id) { s.events.push({ t: s.t, kind: kind, text: text, id: id || null }); }
+
+  function create(det) {
+    det = det || {};
+    var s = {
+      t: 0, done: false, ending: null, crashId: null, crashAt: null,
+      ego: { x: 0, v: 0, braking: false, crashed: false },
+      actors: [], events: [], det: det,
+      stats: { collisions: 0, nearMisses: 0, violations: 0, lateBrakes: 0, warnings: 0 },
+      results: {}, outcome: null
+    };
+    G.GROUND_TRUTH.forEach(function (g) {
+      var sp = g.sim, d = det[g.id] || { mode: 'missed' };
+      var a = {
+        id: g.id, name: g.name, short: g.short, warn: g.warn || '', art: g.art, cls: g.cls,
+        type: sp.type, critical: !!g.critical, mode: d.mode, sp: sp,
+        w: sp.w || 18, h: sp.h || 18, x: sp.x || 0, y: sp.y || ROAD.egoY, vx: 0,
+        state: 'idle', perceived: false, percAt: null, minGap: Infinity, noted: false,
+        spawned: sp.type !== 'oncoming', waitT: 0, stopT: 0, violated: false, lateNoted: false
+      };
+      if (sp.type === 'lead') a.state = 'stopped';
+      if (sp.type === 'light') a.state = 'red';
+      if (sp.type === 'crosser') a.y = sp.y0;
+      s.actors.push(a);
+    });
+    return s;
+  }
+
+  function updateActors(s, dt) {
+    var f = front(s);
+    s.actors.forEach(function (a) {
+      if (s.crashId === a.id) return; // whatever was hit stays where it was hit
+      switch (a.type) {
+        case 'crosser':
+          if (a.state === 'idle' && a.x > f && a.x - f <= a.sp.trigger) a.state = 'crossing';
+          if (a.state === 'crossing') {
+            a.y += a.sp.speed * dt;
+            if (a.y >= a.sp.y1) { a.y = a.sp.y1; a.state = 'done'; }
+          }
+          break;
+        case 'walker':
+          a.x += a.sp.vx * dt;
+          break;
+        case 'lead':
+          if (a.state === 'stopped') {
+            var near = (a.x - a.w / 2) - f < 140 && s.ego.v < 15;
+            a.waitT = near ? a.waitT + dt : 0;
+            if (a.waitT >= 1.5) a.state = 'moving';
+          } else {
+            a.vx = Math.min(a.vx + 60 * dt, 150);
+            a.x += a.vx * dt;
+          }
+          break;
+        case 'oncoming':
+          if (!a.spawned && s.ego.x >= a.sp.spawnAfter) { a.spawned = true; a.x = s.ego.x + a.sp.offset; }
+          if (a.spawned) a.x -= a.sp.speed * dt;
+          break;
+        case 'light':
+          if (a.state === 'red') {
+            if (f >= a.x - 40 && f <= a.x + 2 && s.ego.v < 2) a.stopT += dt; else a.stopT = 0;
+            if (a.stopT >= P.lightWait) a.state = 'green';
+            if (f > a.x + 4 && !a.violated) {
+              a.violated = true; s.stats.violations += 1;
+              note(s, 'bad', 'Ran the red light!', a.id);
+            }
+            if (f > a.x + 150) a.state = 'green';
+          }
+          break;
+      }
+    });
+  }
+
+  function perceive(s) {
+    var f = front(s);
+    s.actors.forEach(function (a) {
+      if (!a.critical || a.perceived) return;
+      var d = refX(a) - f;
+      if (a.mode !== 'missed') {
+        if (d <= P.range[a.mode] && d > -20) {
+          a.perceived = true; a.percAt = s.t;
+          if (a.mode === 'good') note(s, 'ok', 'Detected: ' + a.short, a.id);
+        }
+      } else if (!a.noted && d <= P.range.late && d > -20) {
+        a.noted = true;
+        note(s, 'bad', 'No detection: ' + a.short, a.id);
+      }
+    });
+  }
+
+  function blocking(a, f) {
+    if (a.type === 'crosser') return a.state === 'crossing' && a.y < ROAD.bottom + a.h / 2 + 8 && f < a.x + a.w / 2;
+    if (a.type === 'lead') return f < a.x - a.w / 2 + 2;
+    if (a.type === 'light') return a.state === 'red' && f < a.x + 2;
+    return false;
+  }
+  function target(a) {
+    if (a.type === 'light') return a.x - 6;
+    return a.x - a.w / 2 - P.margin;
+  }
+
+  function step(s, dt) {
+    if (s.done) return;
+    s.t += dt;
+    var e = s.ego;
+    updateActors(s, dt);
+    if (e.crashed) {
+      e.v = 0; e.braking = true;
+      if (s.t - s.crashAt >= P.crashHold) finish(s, 'crash');
+      return;
+    }
+    perceive(s);
+
+    var f = front(s), vAllow = P.cruise;
+    s.actors.forEach(function (a) {
+      if (!a.critical || !a.perceived) return;
+      if (s.t < a.percAt + P.delay[a.mode]) return;
+      if (a.mode === 'late' && !a.lateNoted) {
+        a.lateNoted = true; s.stats.lateBrakes += 1;
+        note(s, 'warn', 'Late detection: ' + a.short + ' (hard braking)', a.id);
+      }
+      if (!blocking(a, f)) return;
+      var gap = Math.max(0, target(a) - f), vl = a.type === 'lead' ? Math.max(0, a.vx) : 0;
+      var va = gap < 0.3 ? vl : Math.sqrt(vl * vl + 2 * P.comfDecel * gap);
+      vAllow = Math.min(vAllow, va);
+    });
+
+    var prev = e.v;
+    if (e.v > vAllow) e.v = Math.max(vAllow, e.v - P.maxDecel * dt);
+    else e.v = Math.min(vAllow, e.v + P.accel * dt);
+    e.braking = e.v < prev - 0.01;
+    e.x += e.v * dt;
+    f = front(s);
+
+    var er = egoRect(s);
+    for (var i = 0; i < s.actors.length; i++) {
+      var a = s.actors[i];
+      if (a.type === 'light' || (a.type === 'oncoming' && !a.spawned)) continue;
+      var r = rectOf(a);
+      if (a.critical && (a.type === 'lead' || (a.type === 'crosser' && a.state === 'crossing')) &&
+          f > a.x - a.w / 2 - 150 && er.l < r.r) {
+        a.minGap = Math.min(a.minGap, rectGap(er, r));
+      }
+      if (overlap(er, r)) {
+        e.crashed = true; e.v = 0; s.crashId = a.id; s.crashAt = s.t; s.stats.collisions = 1;
+        note(s, 'bad', 'COLLISION with ' + a.short + '!', a.id);
+        return;
+      }
+    }
+
+    s.actors.forEach(function (a) {
+      if (a.critical || a.noted || a.mode !== 'missed' || !a.warn) return;
+      var close = a.type === 'oncoming' ? (a.spawned && Math.abs(a.x - s.ego.x) < 160) : f >= a.x - 60;
+      if (close) { a.noted = true; s.stats.warnings += 1; note(s, 'warn', 'Warning: ' + a.warn, a.id); }
+    });
+
+    if (f >= P.finishX) finish(s, 'finish');
+    else if (s.t > P.maxTime) finish(s, 'timeout');
+  }
+
+  function finish(s, why) {
+    s.done = true; s.ending = why;
+    var f = front(s), res = s.results;
+    s.actors.forEach(function (a) {
+      var r = 'safe';
+      if (a.critical) {
+        if (s.crashId === a.id) r = 'collision';
+        else if (s.ego.crashed && f < refX(a)) r = 'not_reached';
+        else if (a.type === 'light' && a.violated) r = 'violation';
+        else if (a.minGap < P.nearMiss) r = 'near_miss';
+        else if (a.mode === 'late' && a.perceived) r = 'late_brake';
+        if (r === 'near_miss') s.stats.nearMisses += 1;
+      } else if (a.mode === 'missed') {
+        r = a.noted ? 'missed_warning' : 'not_reached';
+      }
+      res[a.id] = r;
+    });
+    var vals = Object.keys(res).map(function (k) { return res[k]; });
+    var has = function (x) { return vals.indexOf(x) >= 0; };
+    if (s.crashId) s.outcome = 'collision';
+    else if (has('near_miss') || has('violation')) s.outcome = 'near_miss';
+    else if (has('late_brake') || s.stats.warnings > 0) s.outcome = 'warnings';
+    else s.outcome = 'safe';
+  }
+
+  G.Sim = { ROAD: ROAD, P: P, create: create, step: step, rectOf: rectOf, refX: refX, front: front };
+})(window.GIGO);
+
+/* GIGO – draws the predefined road scene (programmatic art: no image files, no licences).
+ * Each object is drawn inside its ground-truth box so the answer key is exact. */
+window.GIGO = window.GIGO || {};
+(function (G) {
+  'use strict';
+
+  function rr(ctx, x, y, w, h, r) {
+    r = Math.min(r, w / 2, h / 2);
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.arcTo(x + w, y, x + w, y + h, r);
+    ctx.arcTo(x + w, y + h, x, y + h, r);
+    ctx.arcTo(x, y + h, x, y, r);
+    ctx.arcTo(x, y, x + w, y, r);
+    ctx.closePath();
+  }
+  G.roundRect = rr;
+  G.rng = function (seed) { return rng(seed); };
+  G.shade = function (hex, amt) { return shade(hex, amt); };
+
+  // deterministic noise so the scene is identical on every load
+  function rng(seed) { return function () { seed = (seed * 16807) % 2147483647; return (seed - 1) / 2147483646; }; }
+
+  function vgrad(ctx, y0, y1, stops) {
+    var g = ctx.createLinearGradient(0, y0, 0, y1);
+    stops.forEach(function (s, i) { g.addColorStop(i / (stops.length - 1), s); });
+    return g;
+  }
+  function hgrad(ctx, x0, x1, stops) {
+    var g = ctx.createLinearGradient(x0, 0, x1, 0);
+    stops.forEach(function (s, i) { g.addColorStop(i / (stops.length - 1), s); });
+    return g;
+  }
+
+  function shadow(ctx, cx, y, rx) {
+    var g = ctx.createRadialGradient(cx, y, 0, cx, y, rx);
+    g.addColorStop(0, 'rgba(15,23,42,.42)'); g.addColorStop(0.7, 'rgba(15,23,42,.18)'); g.addColorStop(1, 'rgba(15,23,42,0)');
+    ctx.save(); ctx.translate(cx, y); ctx.scale(1, 0.2); ctx.translate(-cx, -y);
+    ctx.fillStyle = g; ctx.beginPath(); ctx.arc(cx, y, rx, 0, Math.PI * 2); ctx.fill();
+    ctx.restore();
+  }
+
+  function shade(hex, amt) {
+    // amt > 0 lightens, < 0 darkens
+    var n = parseInt(hex.slice(1), 16), r = n >> 16, g = (n >> 8) & 255, b = n & 255;
+    var t = amt < 0 ? 0 : 255, p = Math.abs(amt);
+    return 'rgb(' + Math.round(r + (t - r) * p) + ',' + Math.round(g + (t - g) * p) + ',' + Math.round(b + (t - b) * p) + ')';
+  }
+
+  /* ---- objects ---- */
+
+  function drawCar(ctx, b, art) {
+    var x = b.x, y = b.y, w = b.w, h = b.h, c = art.color || '#c0392b';
+    shadow(ctx, x + w / 2, y + h * 0.96, w * 0.56);
+    // wheels (behind body)
+    ctx.fillStyle = '#16181c';
+    rr(ctx, x + w * 0.05, y + h * 0.78, w * 0.17, h * 0.22, 3); ctx.fill();
+    rr(ctx, x + w * 0.78, y + h * 0.78, w * 0.17, h * 0.22, 3); ctx.fill();
+    // cabin
+    ctx.beginPath();
+    ctx.moveTo(x + w * 0.12, y + h * 0.44);
+    ctx.lineTo(x + w * 0.2, y + h * 0.06);
+    ctx.quadraticCurveTo(x + w * 0.22, y, x + w * 0.3, y);
+    ctx.lineTo(x + w * 0.7, y);
+    ctx.quadraticCurveTo(x + w * 0.78, y, x + w * 0.8, y + h * 0.06);
+    ctx.lineTo(x + w * 0.88, y + h * 0.44);
+    ctx.closePath();
+    ctx.fillStyle = vgrad(ctx, y, y + h * 0.44, [shade(c, 0.08), shade(c, -0.25)]); ctx.fill();
+    // glass
+    ctx.beginPath();
+    ctx.moveTo(x + w * 0.19, y + h * 0.4);
+    ctx.lineTo(x + w * 0.25, y + h * 0.1);
+    ctx.quadraticCurveTo(x + w * 0.26, y + h * 0.07, x + w * 0.31, y + h * 0.07);
+    ctx.lineTo(x + w * 0.69, y + h * 0.07);
+    ctx.quadraticCurveTo(x + w * 0.74, y + h * 0.07, x + w * 0.75, y + h * 0.1);
+    ctx.lineTo(x + w * 0.81, y + h * 0.4);
+    ctx.closePath();
+    ctx.fillStyle = vgrad(ctx, y + h * 0.07, y + h * 0.4, ['#5b7a95', '#22374b']); ctx.fill();
+    ctx.save(); ctx.clip();
+    ctx.fillStyle = 'rgba(255,255,255,.18)';
+    ctx.beginPath(); ctx.moveTo(x + w * 0.36, y); ctx.lineTo(x + w * 0.5, y); ctx.lineTo(x + w * 0.36, y + h * 0.45); ctx.lineTo(x + w * 0.22, y + h * 0.45); ctx.fill();
+    ctx.restore();
+    // mirrors
+    ctx.fillStyle = shade(c, -0.3);
+    rr(ctx, x + w * 0.04, y + h * 0.33, w * 0.1, h * 0.09, 2); ctx.fill();
+    rr(ctx, x + w * 0.86, y + h * 0.33, w * 0.1, h * 0.09, 2); ctx.fill();
+    // body
+    rr(ctx, x, y + h * 0.4, w, h * 0.46, h * 0.12);
+    ctx.fillStyle = vgrad(ctx, y + h * 0.4, y + h * 0.86, [shade(c, 0.18), c, shade(c, -0.28)]); ctx.fill();
+    ctx.fillStyle = 'rgba(255,255,255,.22)'; ctx.fillRect(x + w * 0.06, y + h * 0.43, w * 0.88, h * 0.025);
+    // lamps
+    var front = art.front, braking = art.braking;
+    var lamp = front ? '#fff7d6' : (braking ? '#ff3030' : '#8f1d1d');
+    ctx.save();
+    if (front || braking) { ctx.shadowColor = front ? 'rgba(255,240,180,.95)' : 'rgba(255,30,30,.95)'; ctx.shadowBlur = 16; }
+    ctx.fillStyle = lamp;
+    rr(ctx, x + w * 0.05, y + h * 0.5, w * 0.19, h * 0.11, 3); ctx.fill();
+    rr(ctx, x + w * 0.76, y + h * 0.5, w * 0.19, h * 0.11, 3); ctx.fill();
+    ctx.restore();
+    ctx.fillStyle = 'rgba(255,255,255,.55)';
+    ctx.fillRect(x + w * 0.08, y + h * 0.52, w * 0.06, h * 0.03); ctx.fillRect(x + w * 0.79, y + h * 0.52, w * 0.06, h * 0.03);
+    // grille or plate
+    if (front) {
+      rr(ctx, x + w * 0.32, y + h * 0.53, w * 0.36, h * 0.09, 2); ctx.fillStyle = 'rgba(0,0,0,.45)'; ctx.fill();
+    }
+    rr(ctx, x + w * 0.38, y + h * 0.66, w * 0.24, h * 0.09, 2); ctx.fillStyle = '#f2f2ee'; ctx.fill();
+    ctx.fillStyle = '#3b3f46'; ctx.fillRect(x + w * 0.42, y + h * 0.695, w * 0.16, h * 0.025);
+    // bumper
+    rr(ctx, x + w * 0.02, y + h * 0.79, w * 0.96, h * 0.07, h * 0.03); ctx.fillStyle = shade(c, -0.45); ctx.fill();
+  }
+
+  function drawPed(ctx, b, art) {
+    var cx = b.x + b.w / 2, w = b.w, h = b.h, y = b.y;
+    shadow(ctx, cx, y + h * 0.985, w * 0.6);
+    ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+    // legs
+    ctx.strokeStyle = art.pants; ctx.lineWidth = w * 0.19;
+    ctx.beginPath(); ctx.moveTo(cx - w * 0.11, y + h * 0.58); ctx.lineTo(cx - w * 0.18, y + h * 0.93); ctx.stroke();
+    ctx.strokeStyle = shade(art.pants, -0.25);
+    ctx.beginPath(); ctx.moveTo(cx + w * 0.11, y + h * 0.58); ctx.lineTo(cx + w * 0.2, y + h * 0.93); ctx.stroke();
+    // shoes
+    ctx.fillStyle = '#1f2328';
+    rr(ctx, cx - w * 0.32, y + h * 0.935, w * 0.24, h * 0.055, 2); ctx.fill();
+    rr(ctx, cx + w * 0.1, y + h * 0.935, w * 0.24, h * 0.055, 2); ctx.fill();
+    // back arm
+    ctx.strokeStyle = shade(art.shirt, -0.25); ctx.lineWidth = w * 0.14;
+    ctx.beginPath(); ctx.moveTo(cx + w * 0.26, y + h * 0.27); ctx.lineTo(cx + w * 0.38, y + h * 0.5); ctx.stroke();
+    // torso
+    rr(ctx, cx - w * 0.3, y + h * 0.2, w * 0.6, h * 0.42, w * 0.2);
+    ctx.fillStyle = hgrad(ctx, cx - w * 0.3, cx + w * 0.3, [shade(art.shirt, 0.15), art.shirt, shade(art.shirt, -0.22)]); ctx.fill();
+    // front arm + hands
+    ctx.strokeStyle = art.shirt; ctx.lineWidth = w * 0.14;
+    ctx.beginPath(); ctx.moveTo(cx - w * 0.26, y + h * 0.27); ctx.lineTo(cx - w * 0.38, y + h * 0.5); ctx.stroke();
+    ctx.fillStyle = '#e8b892';
+    ctx.beginPath(); ctx.arc(cx - w * 0.39, y + h * 0.53, w * 0.07, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(cx + w * 0.39, y + h * 0.53, w * 0.07, 0, Math.PI * 2); ctx.fill();
+    // neck + head
+    ctx.fillStyle = '#d9a47e'; ctx.fillRect(cx - w * 0.07, y + h * 0.17, w * 0.14, h * 0.05);
+    ctx.fillStyle = '#efc39f';
+    ctx.beginPath(); ctx.arc(cx, y + h * 0.11, w * 0.26, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = art.hair;
+    ctx.beginPath(); ctx.arc(cx, y + h * 0.1, w * 0.27, Math.PI * 0.95, Math.PI * 2.05); ctx.fill();
+    ctx.fillStyle = 'rgba(255,255,255,.18)';
+    ctx.beginPath(); ctx.arc(cx - w * 0.08, y + h * 0.06, w * 0.08, 0, Math.PI * 2); ctx.fill();
+  }
+
+  function wheel(ctx, x, y, r) {
+    ctx.strokeStyle = '#1b1f24'; ctx.lineWidth = 4;
+    ctx.beginPath(); ctx.arc(x, y, r - 1, 0, Math.PI * 2); ctx.stroke();
+    ctx.strokeStyle = '#9aa3ad'; ctx.lineWidth = 1.2;
+    ctx.beginPath(); ctx.arc(x, y, r - 3.5, 0, Math.PI * 2); ctx.stroke();
+    ctx.strokeStyle = 'rgba(154,163,173,.7)'; ctx.lineWidth = 0.8;
+    for (var i = 0; i < 8; i++) {
+      var a = i * Math.PI / 4;
+      ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + Math.cos(a) * (r - 3.5), y + Math.sin(a) * (r - 3.5)); ctx.stroke();
+    }
+    ctx.fillStyle = '#4b5563'; ctx.beginPath(); ctx.arc(x, y, 2.2, 0, Math.PI * 2); ctx.fill();
+  }
+
+  function drawBike(ctx, b, art) {
+    var wr = b.h * 0.27, y0 = b.y + b.h - wr - 2;
+    var lx = b.x + b.w * 0.27, rx = b.x + b.w * 0.73;
+    var seat = { x: b.x + b.w * 0.44, y: y0 - wr * 1.05 }, ped = { x: b.x + b.w * 0.5, y: y0 }, bar = { x: b.x + b.w * 0.68, y: y0 - wr * 1.2 };
+    shadow(ctx, b.x + b.w / 2, b.y + b.h - 1, b.w * 0.52);
+    ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+    // back leg
+    var sh = { x: b.x + b.w * 0.58, y: b.y + b.h * 0.3 };
+    ctx.strokeStyle = shade(art.pants, -0.3); ctx.lineWidth = 7;
+    ctx.beginPath(); ctx.moveTo(seat.x, seat.y); ctx.lineTo(ped.x - 5, ped.y + 4); ctx.stroke();
+    wheel(ctx, lx, y0, wr); wheel(ctx, rx, y0, wr);
+    // frame
+    ctx.strokeStyle = art.color; ctx.lineWidth = 4;
+    ctx.beginPath(); ctx.moveTo(lx, y0); ctx.lineTo(seat.x, seat.y); ctx.lineTo(bar.x, bar.y); ctx.lineTo(ped.x, ped.y); ctx.lineTo(seat.x, seat.y);
+    ctx.moveTo(lx, y0); ctx.lineTo(ped.x, ped.y);
+    ctx.moveTo(bar.x, bar.y); ctx.lineTo(rx, y0); ctx.stroke();
+    ctx.fillStyle = '#1f2937'; rr(ctx, seat.x - 6, seat.y - 4, 12, 4, 2); ctx.fill();
+    ctx.strokeStyle = '#1f2937'; ctx.lineWidth = 2.5;
+    ctx.beginPath(); ctx.moveTo(bar.x - 2, bar.y - 2); ctx.lineTo(bar.x + 5, bar.y - 4); ctx.stroke();
+    ctx.fillStyle = '#374151'; ctx.beginPath(); ctx.arc(ped.x, ped.y, 3, 0, Math.PI * 2); ctx.fill();
+    // front leg
+    ctx.strokeStyle = art.pants; ctx.lineWidth = 8;
+    ctx.beginPath(); ctx.moveTo(seat.x, seat.y); ctx.lineTo(ped.x + 4, ped.y - 7); ctx.lineTo(ped.x + 6, ped.y + 1); ctx.stroke();
+    // torso + arm
+    ctx.strokeStyle = art.shirt; ctx.lineWidth = 11;
+    ctx.beginPath(); ctx.moveTo(seat.x, seat.y - 2); ctx.lineTo(sh.x, sh.y); ctx.stroke();
+    ctx.strokeStyle = shade(art.shirt, -0.15); ctx.lineWidth = 5;
+    ctx.beginPath(); ctx.moveTo(sh.x, sh.y + 2); ctx.lineTo(bar.x, bar.y); ctx.stroke();
+    // head + helmet
+    var hx = b.x + b.w * 0.63, hy = b.y + b.h * 0.15;
+    ctx.fillStyle = '#efc39f'; ctx.beginPath(); ctx.arc(hx, hy, b.h * 0.085, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#ef4444';
+    ctx.beginPath(); ctx.ellipse(hx - 1, hy - 2, b.h * 0.1, b.h * 0.075, -0.15, Math.PI, 0); ctx.fill();
+    ctx.fillStyle = 'rgba(255,255,255,.35)'; ctx.fillRect(hx - 4, hy - 7, 5, 1.5);
+  }
+
+  function drawLight(ctx, b) {
+    var cx = b.x + b.w / 2;
+    // pole
+    ctx.fillStyle = hgrad(ctx, cx - 3.5, cx + 3.5, ['#7b838d', '#4b525b']); ctx.fillRect(cx - 3.5, b.y + b.h - 2, 7, 100);
+    // backplate + housing
+    rr(ctx, b.x, b.y, b.w, b.h, 6); ctx.fillStyle = '#12161b'; ctx.fill();
+    rr(ctx, b.x + 2, b.y + 2, b.w - 4, b.h - 4, 5); ctx.fillStyle = hgrad(ctx, b.x, b.x + b.w, ['#2b323b', '#1b2027']); ctx.fill();
+    var cols = ['#ff3b30', '#3d3315', '#10301a'], r = b.w * 0.27;
+    for (var i = 0; i < 3; i++) {
+      var ly = b.y + b.h * (0.19 + i * 0.31);
+      ctx.fillStyle = '#0b0e12'; ctx.beginPath(); ctx.arc(cx, ly, r + 2, 0, Math.PI * 2); ctx.fill();
+      ctx.save();
+      if (i === 0) { ctx.shadowColor = 'rgba(255,59,48,.95)'; ctx.shadowBlur = 18; }
+      var lg = ctx.createRadialGradient(cx - r * 0.3, ly - r * 0.3, 0, cx, ly, r);
+      lg.addColorStop(0, i === 0 ? '#ffb4ad' : shade(cols[i], 0.12)); lg.addColorStop(1, cols[i]);
+      ctx.fillStyle = lg; ctx.beginPath(); ctx.arc(cx, ly, r, 0, Math.PI * 2); ctx.fill();
+      ctx.restore();
+      // visor
+      ctx.fillStyle = '#0b0e12';
+      ctx.beginPath(); ctx.arc(cx, ly, r + 2.5, Math.PI * 1.08, Math.PI * 1.92); ctx.lineTo(cx + r * 0.7, ly - r * 0.55); ctx.arc(cx, ly, r * 0.9, Math.PI * 1.85, Math.PI * 1.15, true); ctx.closePath(); ctx.fill();
+    }
+  }
+
+  function drawSign(ctx, b, art) {
+    var cx = b.x + b.w / 2, cy = b.y + b.h / 2;
+    ctx.fillStyle = hgrad(ctx, cx - 2.5, cx + 2.5, ['#8b939c', '#5b626b']); ctx.fillRect(cx - 2.5, b.y + b.h - 2, 5, 80);
+    if (art.sign === 'speed') {
+      var r = Math.min(b.w, b.h) / 2;
+      ctx.fillStyle = '#9ca3ab'; ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(cx, cy, r - 1.2, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = '#d42626'; ctx.lineWidth = r * 0.22;
+      ctx.beginPath(); ctx.arc(cx, cy, r * 0.8, 0, Math.PI * 2); ctx.stroke();
+      ctx.fillStyle = '#111'; ctx.font = '800 ' + Math.round(r * 0.88) + 'px system-ui, sans-serif';
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('50', cx, cy + 1);
+    } else {
+      function diamond(inset) {
+        ctx.beginPath(); ctx.moveTo(cx, b.y + inset); ctx.lineTo(b.x + b.w - inset, cy); ctx.lineTo(cx, b.y + b.h - inset); ctx.lineTo(b.x + inset, cy); ctx.closePath();
+      }
+      diamond(0.5); ctx.fillStyle = '#1f2937'; ctx.fill();
+      diamond(2.5); ctx.fillStyle = '#fde047'; ctx.fill();
+      diamond(4.5); ctx.strokeStyle = '#1f2937'; ctx.lineWidth = 1.2; ctx.stroke();
+      // two children walking
+      ctx.fillStyle = '#111'; ctx.strokeStyle = '#111'; ctx.lineCap = 'round'; ctx.lineWidth = 2.4;
+      ctx.beginPath(); ctx.arc(cx - 4, cy - 7, 2.6, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath(); ctx.moveTo(cx - 4, cy - 3); ctx.lineTo(cx - 5, cy + 4); ctx.lineTo(cx - 8, cy + 9);
+      ctx.moveTo(cx - 5, cy + 4); ctx.lineTo(cx - 2, cy + 9); ctx.moveTo(cx - 4, cy - 2); ctx.lineTo(cx + 2, cy + 1); ctx.stroke();
+      ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.arc(cx + 5, cy - 3, 2.1, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath(); ctx.moveTo(cx + 5, cy); ctx.lineTo(cx + 5, cy + 5); ctx.lineTo(cx + 3, cy + 9); ctx.moveTo(cx + 5, cy + 5); ctx.lineTo(cx + 7, cy + 9); ctx.stroke();
+    }
+  }
+
+  G.drawObject = function (ctx, g) {
+    ctx.save();
+    var k = g.art.kind;
+    if (k === 'car') drawCar(ctx, g.box, g.art);
+    else if (k === 'ped') drawPed(ctx, g.box, g.art);
+    else if (k === 'bike') drawBike(ctx, g.box, g.art);
+    else if (k === 'light') drawLight(ctx, g.box);
+    else if (k === 'sign') drawSign(ctx, g.box, g.art);
+    ctx.restore();
+  };
+
+  /* ---- backdrop ---- */
+
+  function cloud(ctx, x, y, s) {
+    ctx.fillStyle = 'rgba(255,255,255,.85)';
+    [[0, 0, 18], [16, -8, 20], [36, -2, 16], [24, 6, 15], [8, 7, 13]].forEach(function (c) {
+      ctx.beginPath(); ctx.arc(x + c[0] * s, y + c[1] * s, c[2] * s, 0, Math.PI * 2); ctx.fill();
+    });
+  }
+
+  function tree(ctx, x, y, r) {
+    var g = ctx.createRadialGradient(x, y + r * 0.6, 0, x, y + r * 0.6, r * 1.1);
+    g.addColorStop(0, 'rgba(30,60,30,.3)'); g.addColorStop(1, 'rgba(30,60,30,0)');
+    ctx.fillStyle = g; ctx.fillRect(x - r * 1.1, y, r * 2.2, r * 1.2);
+    ctx.fillStyle = '#6b4f3a'; ctx.fillRect(x - 2.5, y - r * 0.2, 5, r * 1.15);
+    [[-0.45, 0.05, 0.62, '#3f8a4e'], [0.42, 0.08, 0.6, '#3f8a4e'], [0, -0.32, 0.72, '#4a9a59'], [-0.15, -0.1, 0.6, '#55a764'], [0.18, -0.48, 0.38, '#69b977']]
+      .forEach(function (c) { ctx.fillStyle = c[3]; ctx.beginPath(); ctx.arc(x + c[0] * r, y - r * 0.4 + c[1] * r, c[2] * r, 0, Math.PI * 2); ctx.fill(); });
+  }
+
+  function building(ctx, x, w, h, hz, base, rand) {
+    var top = hz - h;
+    ctx.fillStyle = base; ctx.fillRect(x, top, w, h);
+    ctx.fillStyle = 'rgba(15,23,42,.10)'; ctx.fillRect(x + w * 0.72, top, w * 0.28, h);
+    ctx.fillStyle = 'rgba(255,255,255,.22)'; ctx.fillRect(x - 1, top - 3, w + 2, 3);
+    for (var wy = top + 9; wy < hz - 12; wy += 15) {
+      for (var wx = x + 7; wx < x + w - 9; wx += 13) {
+        var lit = rand() < 0.18;
+        ctx.fillStyle = lit ? 'rgba(255,248,220,.75)' : 'rgba(225,238,250,.55)';
+        ctx.fillRect(wx, wy, 6, 8);
+      }
+    }
+  }
+
+  var LEFT = function (y) { return 340 - 440 * (y - 190) / 310; };
+  var RIGHT = function (y) { return 460 + 440 * (y - 190) / 310; };
+
+  G.drawScene = function (ctx) {
+    var W = G.SCENE.width, H = G.SCENE.height, hz = G.SCENE.horizon, i, rand = rng(7);
+    // sky
+    ctx.fillStyle = vgrad(ctx, 0, hz, ['#6bb7ea', '#a9d8f4', '#e7f4fb']); ctx.fillRect(0, 0, W, hz);
+    var sun = ctx.createRadialGradient(660, 40, 0, 660, 40, 220);
+    sun.addColorStop(0, 'rgba(255,250,225,.85)'); sun.addColorStop(0.25, 'rgba(255,246,210,.35)'); sun.addColorStop(1, 'rgba(255,246,210,0)');
+    ctx.fillStyle = sun; ctx.fillRect(0, 0, W, hz);
+    cloud(ctx, 80, 46, 1); cloud(ctx, 360, 28, 0.75); cloud(ctx, 520, 70, 0.6);
+    // far skyline (hazy)
+    var fx = -20;
+    for (i = 0; fx < W; i++) {
+      var fw = 40 + rand() * 50, fh = 90 + rand() * 70;
+      ctx.fillStyle = '#c4d3e2'; ctx.fillRect(fx, hz - fh, fw, fh);
+      fx += fw + 2;
+    }
+    // near skyline
+    var bw = [60, 44, 80, 52, 70, 48, 90, 56, 66, 50, 84, 46, 72, 58], bx = -10, hs = [70, 100, 60, 90, 120, 75, 55, 105, 80, 95, 65, 110, 70, 85];
+    var tones = ['#97a8bb', '#a8b7c7', '#8e9fb3', '#b0bdcb'];
+    for (i = 0; i < bw.length; i++) { building(ctx, bx, bw[i], hs[i], hz, tones[i % tones.length], rand); bx += bw[i] + 4; }
+    // horizon haze
+    ctx.fillStyle = vgrad(ctx, hz - 50, hz, ['rgba(231,244,251,0)', 'rgba(231,244,251,.55)']); ctx.fillRect(0, hz - 50, W, 50);
+    // grass + hedge
+    ctx.fillStyle = vgrad(ctx, hz, H, ['#9bc98f', '#86bb7b', '#78ad6d']); ctx.fillRect(0, hz, W, H - hz);
+    ctx.fillStyle = '#6fa868'; ctx.fillRect(0, hz, W, 5);
+    // trees
+    [[20, 175, 20], [120, 168, 24], [560, 172, 18], [770, 170, 26]].forEach(function (t) { tree(ctx, t[0], t[1], t[2]); });
+
+    // pavements with slab joints
+    function pave(pts) { ctx.beginPath(); ctx.moveTo(pts[0][0], pts[0][1]); for (var k = 1; k < pts.length; k++) ctx.lineTo(pts[k][0], pts[k][1]); ctx.closePath(); }
+    ctx.fillStyle = vgrad(ctx, hz, H, ['#cfd4da', '#dde1e5']);
+    pave([[318, hz], [340, hz], [-100, H], [-300, H]]); ctx.fill();
+    pave([[460, hz], [482, hz], [1100, H], [900, H]]); ctx.fill();
+    ctx.strokeStyle = 'rgba(100,110,125,.22)'; ctx.lineWidth = 1;
+    for (var t = 0.08; t < 1; t += 0.07) {
+      var yy = hz + (H - hz) * t * t;
+      var l0 = 318 - 418 * (yy - hz) / (H - hz), l1 = LEFT(yy), r0 = RIGHT(yy), r1 = 482 + 618 * (yy - hz) / (H - hz);
+      ctx.beginPath(); ctx.moveTo(l0, yy); ctx.lineTo(l1, yy); ctx.moveTo(r0, yy); ctx.lineTo(r1, yy); ctx.stroke();
+    }
+
+    // road
+    function roadPath() { ctx.beginPath(); ctx.moveTo(340, hz); ctx.lineTo(460, hz); ctx.lineTo(900, H); ctx.lineTo(-100, H); ctx.closePath(); }
+    roadPath(); ctx.fillStyle = vgrad(ctx, hz, H, ['#59606a', '#40464f', '#353a42']); ctx.fill();
+    ctx.save(); roadPath(); ctx.clip();
+    // asphalt grain
+    for (i = 0; i < 1600; i++) {
+      var gy = hz + (H - hz) * Math.sqrt(rand()), gx = LEFT(gy) + rand() * (RIGHT(gy) - LEFT(gy));
+      ctx.fillStyle = rand() < 0.5 ? 'rgba(255,255,255,.05)' : 'rgba(0,0,0,.09)';
+      var gs = 0.6 + 1.6 * (gy - hz) / (H - hz); ctx.fillRect(gx, gy, gs, gs);
+    }
+    // tyre wear in each lane
+    [0.25, 0.42, 0.58, 0.75].forEach(function (f) {
+      ctx.strokeStyle = 'rgba(20,24,30,.16)'; ctx.lineWidth = 1;
+      ctx.beginPath();
+      for (var yy2 = hz; yy2 <= H; yy2 += 10) {
+        var p = (yy2 - hz) / (H - hz), xw = LEFT(yy2) + (RIGHT(yy2) - LEFT(yy2)) * f;
+        ctx.lineWidth = 2 + 26 * p;
+        if (yy2 === hz) ctx.moveTo(xw, yy2); else ctx.lineTo(xw, yy2);
+      }
+      ctx.stroke();
+    });
+    // crosswalk stripes, converging to the vanishing point
+    var vx = 400, cwT = 398, cwB = 442;
+    ctx.fillStyle = 'rgba(245,247,250,.92)';
+    for (var sx0 = -140; sx0 < 960; sx0 += 72) {
+      var proj = function (xb, y) { return vx + (xb - vx) * (y - hz) / (cwB - hz); };
+      ctx.beginPath();
+      ctx.moveTo(proj(sx0, cwT), cwT); ctx.lineTo(proj(sx0 + 40, cwT), cwT);
+      ctx.lineTo(sx0 + 40, cwB); ctx.lineTo(sx0, cwB); ctx.closePath(); ctx.fill();
+    }
+    ctx.fillRect(0, 386, W, 5);
+    // edge lines
+    ctx.strokeStyle = 'rgba(255,255,255,.88)'; ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.moveTo(346, hz); ctx.lineTo(-40, H); ctx.moveTo(454, hz); ctx.lineTo(840, H); ctx.stroke();
+    // centre dashes
+    ctx.fillStyle = '#f5c518';
+    for (var td = 0.02; td < 1; td += 0.11) {
+      var y1 = hz + (H - hz) * td * td, y2 = hz + (H - hz) * Math.min(1, (td + 0.055) * (td + 0.055));
+      var w1 = 0.8 + 7 * td * td, w2 = 0.8 + 7 * Math.min(1, (td + 0.055) * (td + 0.055));
+      if (y2 > 380 && y1 < 448) continue; // no dashes through the stop line and crosswalk
+      ctx.beginPath(); ctx.moveTo(400 - w1, y1); ctx.lineTo(400 + w1, y1); ctx.lineTo(400 + w2, y2); ctx.lineTo(400 - w2, y2); ctx.closePath(); ctx.fill();
+    }
+    // distance haze over the far road
+    ctx.fillStyle = vgrad(ctx, hz, hz + 70, ['rgba(220,232,242,.35)', 'rgba(220,232,242,0)']); ctx.fillRect(0, hz, W, 70);
+    ctx.restore();
+    // kerbs
+    ctx.strokeStyle = '#aab1ba'; ctx.lineCap = 'butt';
+    for (var k2 = 0; k2 < 12; k2++) {
+      var ya = hz + (H - hz) * k2 / 12, yb = hz + (H - hz) * (k2 + 1) / 12;
+      ctx.lineWidth = 1 + 5 * (k2 + 1) / 12;
+      ctx.beginPath(); ctx.moveTo(LEFT(ya), ya); ctx.lineTo(LEFT(yb), yb); ctx.moveTo(RIGHT(ya), ya); ctx.lineTo(RIGHT(yb), yb); ctx.stroke();
+    }
+    // objects, far to near
+    G.GROUND_TRUTH.slice().sort(function (a, b) { return (a.box.y + a.box.h) - (b.box.y + b.box.h); })
+      .forEach(function (g) { G.drawObject(ctx, g); });
+    // soft vignette for depth
+    var vg = ctx.createRadialGradient(W / 2, H * 0.55, H * 0.45, W / 2, H * 0.55, W * 0.75);
+    vg.addColorStop(0, 'rgba(15,23,42,0)'); vg.addColorStop(1, 'rgba(15,23,42,.14)');
+    ctx.fillStyle = vg; ctx.fillRect(0, 0, W, H);
+  };
+
+  var cache = {};
+  G.getSceneCanvas = function () {
+    var S = G.SCENARIO, id = S ? S.id : 'road';
+    if (cache[id]) return cache[id];
+    var c = cache[id] = document.createElement('canvas');
+    c.width = G.SCENE.width; c.height = G.SCENE.height;
+    ((S && S.drawScene) || G.drawScene)(c.getContext('2d'));
+    return c;
+  };
+})(window.GIGO);
+
+/* GIGO – annotation evaluator. Pure functions: no DOM, so it can be unit-tested in Node
+ * and later swapped for / combined with a real detector. */
+window.GIGO = window.GIGO || {};
+(function (G) {
+  'use strict';
+
+  G.iou = function (a, b) {
+    var x1 = Math.max(a.x, b.x), y1 = Math.max(a.y, b.y);
+    var x2 = Math.min(a.x + a.w, b.x + b.w), y2 = Math.min(a.y + a.h, b.y + b.h);
+    var inter = Math.max(0, x2 - x1) * Math.max(0, y2 - y1);
+    var union = a.w * a.h + b.w * b.h - inter;
+    return union > 0 ? inter / union : 0;
+  };
+
+  function boxCredit(iou) {
+    var T = G.THRESHOLDS;
+    var q = 0.3 + 0.7 * (iou - T.match) / (T.fullCredit - T.match);
+    return Math.max(0, Math.min(1, q));
+  }
+
+  G.bandFor = function (score) {
+    var bands = G.THRESHOLDS.bands;
+    for (var i = 0; i < bands.length; i++) if (score >= bands[i].min) return bands[i];
+    return bands[bands.length - 1];
+  };
+
+  /* boxes: [{id, x, y, w, h, cls}]  gt: G.GROUND_TRUTH */
+  G.evaluate = function (boxes, gt) {
+    var T = G.THRESHOLDS, pairs = [], i;
+    gt.forEach(function (g, gi) {
+      boxes.forEach(function (b, bi) {
+        var v = G.iou(g.box, b);
+        if (v >= T.match) pairs.push({ gi: gi, bi: bi, iou: v, same: g.cls === b.cls });
+      });
+    });
+    pairs.sort(function (p, q) { return (q.iou + (q.same ? 0.02 : 0)) - (p.iou + (p.same ? 0.02 : 0)); });
+
+    var usedG = {}, usedB = {}, matchOfG = {};
+    pairs.forEach(function (p) {
+      if (usedG[p.gi] || usedB[p.bi]) return;
+      usedG[p.gi] = true; usedB[p.bi] = true; matchOfG[p.gi] = p;
+    });
+
+    var perObject = [], creditSum = 0;
+    var counts = { good: 0, poorBox: 0, wrongClass: 0, missing: 0, duplicate: 0, spurious: 0 };
+    gt.forEach(function (g, gi) {
+      var m = matchOfG[gi], r = { id: g.id, name: g.name, cls: g.cls, critical: !!g.critical, iou: 0, boxId: null, predCls: null };
+      if (!m) {
+        var best = 0;
+        boxes.forEach(function (b) { best = Math.max(best, G.iou(g.box, b)); });
+        r.verdict = 'missing'; r.bestIoU = best; r.mode = 'missed'; r.credit = 0;
+      } else {
+        var b = boxes[m.bi];
+        r.iou = m.iou; r.boxId = b.id; r.predCls = b.cls;
+        if (b.cls !== g.cls) { r.verdict = 'wrongClass'; r.mode = 'missed'; r.credit = boxCredit(m.iou) * T.wrongClassFactor; }
+        else if (m.iou >= T.good) { r.verdict = 'good'; r.mode = 'good'; r.credit = boxCredit(m.iou); }
+        else { r.verdict = 'poorBox'; r.mode = 'late'; r.credit = boxCredit(m.iou); }
+      }
+      counts[r.verdict] += 1;
+      creditSum += r.credit;
+      perObject.push(r);
+    });
+
+    var extras = [];
+    boxes.forEach(function (b, bi) {
+      if (usedB[bi]) return;
+      var dupOf = null, bestV = 0, bestG = null;
+      gt.forEach(function (g) {
+        var v = G.iou(g.box, b);
+        if (v >= T.match && (!dupOf || v > bestV)) { dupOf = g; }
+        if (v > bestV) { bestV = v; bestG = g; }
+      });
+      if (dupOf) { extras.push({ boxId: b.id, type: 'duplicate', ofId: dupOf.id, ofName: dupOf.name }); counts.duplicate += 1; }
+      else { extras.push({ boxId: b.id, type: 'spurious', nearName: bestV >= 0.15 ? bestG.name : null, iou: bestV }); counts.spurious += 1; }
+    });
+
+    var penalty = counts.duplicate * T.duplicatePenalty + counts.spurious * T.spuriousPenalty;
+    var raw = creditSum / gt.length * 100 - penalty;
+    var score = Math.max(0, Math.min(100, Math.round(raw)));
+
+    var byId = {};
+    perObject.forEach(function (r) { byId[r.id] = r; });
+    return {
+      perObject: perObject, byId: byId, extras: extras, counts: counts,
+      score: score, band: G.bandFor(score),
+      total: gt.length,
+      located: gt.length - counts.missing,                 // objects that have a box on them
+      detected: counts.good + counts.poorBox,              // objects the simulated AI can detect
+      boxCount: boxes.length
+    };
+  };
+
+  /* Turn an evaluation into the per-object detection info the simulator uses.
+   * This is the single seam where a real detector's output could be plugged in. */
+  G.buildDetections = function (ev) {
+    var det = {};
+    ev.perObject.forEach(function (r) {
+      var d = { mode: r.mode, verdict: r.verdict, iou: r.iou, label: r.cls, conf: 0, wrong: false };
+      if (r.verdict === 'good') d.conf = Math.min(0.99, 0.5 + 0.5 * r.iou);
+      else if (r.verdict === 'poorBox') d.conf = 0.3 + 0.45 * r.iou;
+      else if (r.verdict === 'wrongClass') { d.wrong = true; d.label = r.predCls; d.conf = 0.4; }
+      det[r.id] = d;
+    });
+    return det;
+  };
+})(window.GIGO);
+
+/* GIGO – renders the driving simulation (state comes from simulator.js): top-down 2D, or the 3D chase camera in sim-3d.js. */
+window.GIGO = window.GIGO || {};
+(function (G) {
+  'use strict';
+
+  var R = G.Sim.ROAD, EGO_SCREEN_X = 200, WORLD_H = 330;
+  var COL = { good: '#22c55e', late: '#f59e0b', missed: '#ef4444', wrong: '#f97316' };
+  var reduceMotion = window.matchMedia ? window.matchMedia('(prefers-reduced-motion: reduce)') : { matches: false };
+
+  function clamp01(v) { return Math.max(0, Math.min(1, v)); }
+  function easeOut(p) { return 1 - Math.pow(1 - clamp01(p), 4); }
+  function hash(n) { var x = Math.sin(n * 127.1 + 311.7) * 43758.5453; return x - Math.floor(x); }
+  function shade(hex, amt) {
+    var n = parseInt(hex.slice(1), 16), r = n >> 16, g = (n >> 8) & 255, b = n & 255;
+    var t = amt < 0 ? 0 : 255, p = Math.abs(amt);
+    return 'rgb(' + Math.round(r + (t - r) * p) + ',' + Math.round(g + (t - g) * p) + ',' + Math.round(b + (t - b) * p) + ')';
+  }
+
+  // asphalt grain, rendered once and tiled with the camera
+  var grain = (function () {
+    var c = document.createElement('canvas'); c.width = 256; c.height = R.bottom - R.top;
+    var g = c.getContext('2d'), seed = 11;
+    function rnd() { seed = (seed * 16807) % 2147483647; return (seed - 1) / 2147483646; }
+    g.fillStyle = '#3f454e'; g.fillRect(0, 0, c.width, c.height);
+    for (var i = 0; i < 1400; i++) {
+      g.fillStyle = rnd() < 0.5 ? 'rgba(255,255,255,.06)' : 'rgba(0,0,0,.12)';
+      g.fillRect(rnd() * c.width, rnd() * c.height, 1 + rnd() * 1.4, 1 + rnd() * 1.4);
+    }
+    return c;
+  })();
+
+  /* ---- top-down sprites ---- */
+
+  function carTop(ctx, cx, cy, len, wid, color, o) {
+    o = o || {};
+    ctx.save(); ctx.translate(cx, cy);
+    if (o.flip) ctx.scale(-1, 1);
+    // ground shadow
+    ctx.fillStyle = 'rgba(15,23,42,.28)'; G.roundRect(ctx, -len / 2 + 3, -wid / 2 + 5, len, wid, 9); ctx.fill();
+    // wheels
+    ctx.fillStyle = '#121418';
+    [[-len * 0.3, -wid / 2 - 1.5], [len * 0.24, -wid / 2 - 1.5], [-len * 0.3, wid / 2 - 3.5], [len * 0.24, wid / 2 - 3.5]].forEach(function (p) {
+      G.roundRect(ctx, p[0] - 6, p[1], 13, 5, 2); ctx.fill();
+    });
+    // body
+    var bg = ctx.createLinearGradient(0, -wid / 2, 0, wid / 2);
+    bg.addColorStop(0, shade(color, -0.2)); bg.addColorStop(0.5, shade(color, 0.14)); bg.addColorStop(1, shade(color, -0.25));
+    G.roundRect(ctx, -len / 2, -wid / 2, len, wid, 9); ctx.fillStyle = bg; ctx.fill();
+    // mirrors
+    ctx.fillStyle = shade(color, -0.3);
+    G.roundRect(ctx, len * 0.08, -wid / 2 - 3, 6, 4, 1.5); ctx.fill(); G.roundRect(ctx, len * 0.08, wid / 2 - 1, 6, 4, 1.5); ctx.fill();
+    // windscreen, roof, rear window
+    var glass = ctx.createLinearGradient(len * 0.04, 0, len * 0.28, 0);
+    glass.addColorStop(0, '#1d2d3d'); glass.addColorStop(1, '#4b6a86');
+    ctx.fillStyle = glass;
+    ctx.beginPath(); ctx.moveTo(len * 0.04, -wid / 2 + 5); ctx.lineTo(len * 0.27, -wid / 2 + 3); ctx.quadraticCurveTo(len * 0.31, 0, len * 0.27, wid / 2 - 3); ctx.lineTo(len * 0.04, wid / 2 - 5); ctx.closePath(); ctx.fill();
+    G.roundRect(ctx, -len * 0.25, -wid / 2 + 5, len * 0.29, wid - 10, 4); ctx.fillStyle = shade(color, 0.06); ctx.fill();
+    ctx.fillStyle = 'rgba(255,255,255,.16)'; ctx.fillRect(-len * 0.22, -wid / 2 + 7, len * 0.23, 3);
+    ctx.fillStyle = '#22364a';
+    ctx.beginPath(); ctx.moveTo(-len * 0.26, -wid / 2 + 5); ctx.lineTo(-len * 0.38, -wid / 2 + 6); ctx.quadraticCurveTo(-len * 0.41, 0, -len * 0.38, wid / 2 - 6); ctx.lineTo(-len * 0.26, wid / 2 - 5); ctx.closePath(); ctx.fill();
+    // hood crease
+    ctx.strokeStyle = 'rgba(255,255,255,.14)'; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(len * 0.31, -wid * 0.18); ctx.lineTo(len * 0.47, -wid * 0.14); ctx.moveTo(len * 0.31, wid * 0.18); ctx.lineTo(len * 0.47, wid * 0.14); ctx.stroke();
+    // headlights
+    ctx.fillStyle = '#fff3c4';
+    G.roundRect(ctx, len / 2 - 4, -wid / 2 + 3, 4, 8, 1.5); ctx.fill(); G.roundRect(ctx, len / 2 - 4, wid / 2 - 11, 4, 8, 1.5); ctx.fill();
+    // sensor dome on the autonomous car
+    if (o.ego) {
+      ctx.fillStyle = '#0f172a'; ctx.beginPath(); ctx.arc(-len * 0.1, 0, 4.5, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#7dd3fc'; ctx.beginPath(); ctx.arc(-len * 0.1, 0, 2, 0, Math.PI * 2); ctx.fill();
+    }
+    // tail lights
+    ctx.save();
+    if (o.braking) { ctx.shadowColor = 'rgba(255,20,20,.95)'; ctx.shadowBlur = 14; }
+    ctx.fillStyle = o.braking ? '#ff2d2d' : '#7f1d1d';
+    G.roundRect(ctx, -len / 2, -wid / 2 + 3, 4, 8, 1.5); ctx.fill(); G.roundRect(ctx, -len / 2, wid / 2 - 11, 4, 8, 1.5); ctx.fill();
+    ctx.restore();
+    // hazard lights after a crash
+    if (o.hazard) {
+      ctx.save(); ctx.shadowColor = 'rgba(251,191,36,.95)'; ctx.shadowBlur = 12; ctx.fillStyle = '#fbbf24';
+      [[len / 2 - 3, -wid / 2 + 1], [len / 2 - 3, wid / 2 - 1], [-len / 2 + 3, -wid / 2 + 1], [-len / 2 + 3, wid / 2 - 1]].forEach(function (p) {
+        ctx.beginPath(); ctx.arc(p[0], p[1], 2.6, 0, Math.PI * 2); ctx.fill();
+      });
+      ctx.restore();
+    }
+    ctx.restore();
+  }
+
+  function person(ctx, x, y, w, h, shirt, vertical, phase) {
+    var s = Math.min(w, h) / 18;
+    ctx.save(); ctx.translate(x, y);
+    if (vertical) ctx.rotate(Math.PI / 2);
+    ctx.scale(s, s);
+    ctx.fillStyle = 'rgba(15,23,42,.25)'; ctx.beginPath(); ctx.ellipse(1.5, 2, 7, 9.5, 0, 0, Math.PI * 2); ctx.fill();
+    // legs swing along the walking direction
+    var sw = Math.sin(phase) * 4;
+    ctx.fillStyle = '#2b3442';
+    ctx.beginPath(); ctx.ellipse(sw, -3.2, 3.2, 2.2, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(-sw, 3.2, 3.2, 2.2, 0, 0, Math.PI * 2); ctx.fill();
+    // shoulders
+    var g = ctx.createLinearGradient(-5, 0, 5, 0);
+    g.addColorStop(0, shade(shirt, 0.12)); g.addColorStop(1, shade(shirt, -0.25));
+    ctx.fillStyle = g; ctx.beginPath(); ctx.ellipse(0, 0, 5, 9, 0, 0, Math.PI * 2); ctx.fill();
+    // head
+    ctx.fillStyle = '#e8b892'; ctx.beginPath(); ctx.arc(0.5, 0, 4.4, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#3b2a20'; ctx.beginPath(); ctx.arc(-0.6, 0, 4.2, Math.PI * 0.5, Math.PI * 1.5); ctx.fill();
+    ctx.restore();
+  }
+
+  function bikeTop(ctx, x, y, art) {
+    ctx.save(); ctx.translate(x, y);
+    ctx.fillStyle = 'rgba(15,23,42,.25)'; G.roundRect(ctx, -2, -16, 8, 36, 4); ctx.fill();
+    ctx.fillStyle = '#1b1f24';
+    G.roundRect(ctx, -1.8, -18, 3.6, 12, 1.8); ctx.fill();
+    G.roundRect(ctx, -1.8, 6, 3.6, 12, 1.8); ctx.fill();
+    ctx.strokeStyle = art.color || '#10b981'; ctx.lineWidth = 2.5; ctx.lineCap = 'round';
+    ctx.beginPath(); ctx.moveTo(0, -10); ctx.lineTo(0, 10); ctx.stroke();
+    ctx.strokeStyle = '#1f2937'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(-7, 9); ctx.lineTo(7, 9); ctx.stroke();
+    var g = ctx.createLinearGradient(-8, 0, 8, 0);
+    g.addColorStop(0, shade(art.shirt, 0.12)); g.addColorStop(1, shade(art.shirt, -0.25));
+    ctx.fillStyle = g; ctx.beginPath(); ctx.ellipse(0, 1, 8.5, 5, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#ef4444'; ctx.beginPath(); ctx.ellipse(0, 2.5, 4.4, 5, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = 'rgba(255,255,255,.4)'; ctx.fillRect(-1, 0, 2, 4.5);
+    ctx.restore();
+  }
+
+  function trafficLight(ctx, lx, state) {
+    ctx.fillStyle = 'rgba(15,23,42,.25)'; G.roundRect(ctx, lx - 7, 273, 18, 46, 4); ctx.fill();
+    ctx.fillStyle = '#59616b'; ctx.fillRect(lx - 2, 262, 4, 10);
+    G.roundRect(ctx, lx - 9, 270, 18, 46, 4); ctx.fillStyle = '#161b21'; ctx.fill();
+    var on = state === 'red' ? 0 : 2;
+    ['#ff3b30', '#f5b301', '#22c55e'].forEach(function (c, i) {
+      ctx.save();
+      if (i === on) { ctx.shadowColor = c; ctx.shadowBlur = 12; ctx.fillStyle = c; }
+      else ctx.fillStyle = shade(c, -0.72);
+      ctx.beginPath(); ctx.arc(lx, 280 + i * 14, 5, 0, Math.PI * 2); ctx.fill();
+      ctx.restore();
+    });
+  }
+
+  function signTop(ctx, x, y, art) {
+    var onTop = y < 100;
+    ctx.fillStyle = '#6b7280'; ctx.fillRect(x - 1.5, y, 3, onTop ? 10 : -10);
+    ctx.fillStyle = 'rgba(15,23,42,.22)'; ctx.beginPath(); ctx.arc(x + 2, y + 3, 12, 0, Math.PI * 2); ctx.fill();
+    if (art.sign === 'speed') {
+      ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(x, y, 11, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = '#d42626'; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(x, y, 9.5, 0, Math.PI * 2); ctx.stroke();
+      ctx.fillStyle = '#111'; ctx.font = '800 9px system-ui'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('50', x, y + 0.5);
+    } else {
+      ctx.fillStyle = '#1f2937';
+      ctx.beginPath(); ctx.moveTo(x, y - 12.5); ctx.lineTo(x + 12.5, y); ctx.lineTo(x, y + 12.5); ctx.lineTo(x - 12.5, y); ctx.closePath(); ctx.fill();
+      ctx.fillStyle = '#fde047';
+      ctx.beginPath(); ctx.moveTo(x, y - 10.5); ctx.lineTo(x + 10.5, y); ctx.lineTo(x, y + 10.5); ctx.lineTo(x - 10.5, y); ctx.closePath(); ctx.fill();
+      ctx.fillStyle = '#111'; ctx.beginPath(); ctx.arc(x - 2, y - 2.5, 1.6, 0, Math.PI * 2); ctx.arc(x + 2.5, y - 1, 1.3, 0, Math.PI * 2); ctx.fill();
+      ctx.fillRect(x - 2.8, y - 0.8, 1.6, 5); ctx.fillRect(x + 1.8, y + 0.4, 1.4, 4);
+    }
+  }
+
+  /* ---- overlays ---- */
+
+  function pill(ctx, text, x, y, color, above) {
+    ctx.font = '700 11px system-ui, sans-serif';
+    var w = ctx.measureText(text).width + 12, h = 17, ty = above ? y - h - 2 : y;
+    ctx.fillStyle = color; G.roundRect(ctx, x, ty, w, h, 4); ctx.fill();
+    ctx.fillStyle = '#fff'; ctx.textAlign = 'left'; ctx.textBaseline = 'middle'; ctx.fillText(text, x + 6, ty + h / 2 + 0.5);
+  }
+
+  // corner-bracket detection box; `p` (0..1) drives the lock-on as it first appears
+  function detBox(ctx, r, mode, text, p) {
+    var e = easeOut(p), pad = 5 + (1 - e) * 14;
+    var x = r.l - pad, y = r.t - pad, w = r.r - r.l + pad * 2, h = r.b - r.t + pad * 2, c = COL[mode];
+    var dashed = mode === 'missed' || mode === 'wrong', k = Math.min(10, w / 3, h / 3);
+    ctx.save();
+    ctx.globalAlpha = 0.25 + 0.75 * e;
+    ctx.fillStyle = c + '1a'; ctx.fillRect(x, y, w, h);
+    ctx.lineWidth = 1.5; ctx.strokeStyle = c + 'aa';
+    if (dashed) ctx.setLineDash([5, 4]);
+    ctx.strokeRect(x, y, w, h);
+    ctx.setLineDash([]);
+    ctx.lineWidth = 3; ctx.strokeStyle = c; ctx.lineCap = 'square';
+    ctx.beginPath();
+    ctx.moveTo(x, y + k); ctx.lineTo(x, y); ctx.lineTo(x + k, y);
+    ctx.moveTo(x + w - k, y); ctx.lineTo(x + w, y); ctx.lineTo(x + w, y + k);
+    ctx.moveTo(x + w, y + h - k); ctx.lineTo(x + w, y + h); ctx.lineTo(x + w - k, y + h);
+    ctx.moveTo(x + k, y + h); ctx.lineTo(x, y + h); ctx.lineTo(x, y + h - k);
+    ctx.stroke();
+    ctx.globalAlpha = e;
+    pill(ctx, text, x, y, mode === 'late' ? '#b45309' : mode === 'good' ? '#15803d' : mode === 'wrong' ? '#c2410c' : '#dc2626', y > 20);
+    ctx.restore();
+  }
+
+  function impact(ctx, x, y, age, still) {
+    var p = still ? 1 : clamp01(age / 0.6);
+    ctx.save();
+    if (!still && p < 1) {
+      ctx.strokeStyle = 'rgba(254,202,202,' + (1 - p) + ')'; ctx.lineWidth = 3;
+      ctx.beginPath(); ctx.arc(x, y, 8 + 46 * easeOut(p), 0, Math.PI * 2); ctx.stroke();
+      ctx.fillStyle = 'rgba(255,255,255,' + 0.7 * (1 - p) + ')';
+      ctx.beginPath(); ctx.arc(x, y, 16 * (1 - p) + 4, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = 'rgba(253,186,116,' + (1 - p) + ')'; ctx.lineWidth = 2; ctx.lineCap = 'round';
+      for (var i = 0; i < 9; i++) {
+        var a = i / 9 * Math.PI * 2 + 0.3, r0 = 10 + 20 * easeOut(p), r1 = r0 + 10;
+        ctx.beginPath(); ctx.moveTo(x + Math.cos(a) * r0, y + Math.sin(a) * r0); ctx.lineTo(x + Math.cos(a) * r1, y + Math.sin(a) * r1); ctx.stroke();
+      }
+    }
+    // lasting impact marker
+    var s = 0.6 + 0.4 * easeOut(Math.min(1, p * 2));
+    ctx.translate(x, y); ctx.scale(s, s);
+    ctx.fillStyle = '#dc2626'; ctx.strokeStyle = '#fff'; ctx.lineWidth = 2;
+    ctx.beginPath();
+    for (var j = 0; j < 16; j++) { var rr = j % 2 ? 7 : 15, an = j / 16 * Math.PI * 2; ctx.lineTo(Math.cos(an) * rr, Math.sin(an) * rr); }
+    ctx.closePath(); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = '#fff'; ctx.font = '900 13px system-ui'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('!', 0, 1);
+    ctx.restore();
+  }
+
+  function outcomeIcon(ctx, x, y, tone) {
+    ctx.save(); ctx.translate(x, y);
+    ctx.fillStyle = 'rgba(255,255,255,.22)'; ctx.beginPath(); ctx.arc(0, 0, 19, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = '#fff'; ctx.lineWidth = 3.5; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+    ctx.beginPath();
+    if (tone === 'good') { ctx.moveTo(-8, 0); ctx.lineTo(-2, 6); ctx.lineTo(9, -6); }
+    else if (tone === 'warn') { ctx.moveTo(0, -8); ctx.lineTo(0, 3); ctx.moveTo(0, 9); ctx.lineTo(0, 9.2); }
+    else { ctx.moveTo(-7, -7); ctx.lineTo(7, 7); ctx.moveTo(7, -7); ctx.lineTo(-7, 7); }
+    ctx.stroke(); ctx.restore();
+  }
+
+  G.SimView = function (canvas) {
+    var ctx = canvas.getContext('2d'), W = canvas.width, H = canvas.height;
+    var lastS = null, lastDet = null, seen = {}, skids = [], prevV = 0, prevT = 0, outro = null;
+    var treeXs = null, mode = '2d';
+
+    function trees(s) {
+      if (treeXs) return treeXs;
+      var avoid = s.actors.map(function (a) { return a.type === 'oncoming' ? -9999 : a.x; });
+      treeXs = [];
+      for (var x = 120; x < G.Sim.P.finishX + 900; x += 210) {
+        var tx = x + (hash(x) - 0.5) * 60;
+        var clear = avoid.every(function (ax) { return Math.abs(ax - tx) > 70; });
+        if (clear) treeXs.push({ x: tx, top: hash(x + 1) < 0.5, r: 11 + hash(x + 2) * 4 });
+      }
+      return treeXs;
+    }
+
+    function track(s) {
+      if (s !== lastS) { seen = {}; skids = []; prevV = s.ego.v; prevT = s.t; outro = null; }
+      var dt = s.t - prevT;
+      if (dt > 0) {
+        var decel = (prevV - s.ego.v) / dt;
+        if (decel > 180 && s.ego.v > 5) skids.push(s.ego.x - G.Sim.P.egoLen * 0.3);
+        prevV = s.ego.v; prevT = s.t;
+      }
+    }
+
+    function render(s, det) {
+      var camX = s.ego.x - EGO_SCREEN_X, f = G.Sim.front(s), still = reduceMotion.matches;
+      var sx = function (wx) { return wx - camX; };
+      var shake = 0;
+      if (!still && s.ego.crashed && s.crashAt != null) shake = Math.max(0, 1 - (s.t - s.crashAt) / 0.6) * 6;
+      ctx.save();
+      if (shake) ctx.translate((Math.random() - 0.5) * shake, (Math.random() - 0.5) * shake);
+      var off = mode === '3d' ? 0 : (H - WORLD_H) / 2;   // the 2D world is 330 tall; centre it and extend the scenery
+      if (off) ctx.translate(0, off);
+
+      var blink = still || Math.floor(s.t * 2.5) % 2 === 0;
+      if (mode === '3d') {
+        G.Sim3D.world(ctx, W, H, s, { still: still, skids: skids, trees: trees(s), blink: blink, impact: impact });
+      } else {
+        // rooftops
+        ctx.fillStyle = '#8fa0b4'; ctx.fillRect(-10, -10 - off, W + 20, 52 + off);
+        for (var k = Math.floor(camX / 110) - 1; k * 110 - camX < W + 110; k++) {
+          var bx = k * 110 - camX, bw = 96 + hash(k) * 10, tone = ['#a3b2c3', '#97a7ba', '#adbac9', '#9badc0'][Math.floor(hash(k + 9) * 4)];
+          ctx.fillStyle = tone; ctx.fillRect(bx, -4 - off, bw, 42 + off);
+          ctx.strokeStyle = 'rgba(15,23,42,.18)'; ctx.lineWidth = 2; ctx.strokeRect(bx + 1, -4 - off, bw - 2, 42 + off);
+          ctx.fillStyle = 'rgba(255,255,255,.35)';
+          ctx.fillRect(bx + 10 + hash(k + 3) * 40, 8, 18, 12);
+          ctx.fillStyle = 'rgba(15,23,42,.15)'; ctx.fillRect(bx + 12 + hash(k + 3) * 40, 20, 18, 3);
+        }
+        ctx.fillStyle = 'rgba(15,23,42,.18)'; ctx.fillRect(-10, 38, W + 20, 5);
+
+        // pavements with scrolling slabs
+        ctx.fillStyle = '#d7dbe0'; ctx.fillRect(-10, 40, W + 20, 60); ctx.fillRect(-10, 260, W + 20, 60);
+        ctx.strokeStyle = 'rgba(100,110,125,.2)'; ctx.lineWidth = 1;
+        ctx.beginPath();
+        for (var px = -(camX % 40) - 40; px < W + 40; px += 40) { ctx.moveTo(px, 43); ctx.lineTo(px, 95); ctx.moveTo(px, 265); ctx.lineTo(px, 320); }
+        ctx.moveTo(-10, 70); ctx.lineTo(W + 10, 70); ctx.moveTo(-10, 292); ctx.lineTo(W + 10, 292);
+        ctx.stroke();
+        ctx.fillStyle = '#b4bbc4'; ctx.fillRect(-10, 95, W + 20, 5); ctx.fillRect(-10, 260, W + 20, 5);
+        ctx.fillStyle = '#86bb7b'; ctx.fillRect(-10, 320, W + 20, 20 + off);
+        ctx.fillStyle = '#6fa868'; ctx.fillRect(-10, 320, W + 20, 3);
+
+        // road
+        for (var gx = -(camX % 256) - 256; gx < W + 256; gx += 256) ctx.drawImage(grain, gx, R.top);
+        ctx.fillStyle = 'rgba(15,23,42,.12)'; ctx.fillRect(-10, R.top, W + 20, 6);
+        ctx.fillStyle = 'rgba(15,23,42,.08)'; ctx.fillRect(-10, R.egoY - 12, W + 20, 6); ctx.fillRect(-10, R.egoY + 8, W + 20, 6);
+        ctx.fillStyle = 'rgba(255,255,255,.85)'; ctx.fillRect(-10, R.top + 3, W + 20, 3); ctx.fillRect(-10, R.bottom - 6, W + 20, 3);
+        ctx.fillStyle = '#f5c518';
+        for (var dx = -(camX % 80) - 80; dx < W + 80; dx += 80) ctx.fillRect(dx, R.mid - 2, 40, 4);
+
+        // skid marks from hard braking
+        ctx.fillStyle = 'rgba(17,19,23,.35)';
+        skids.forEach(function (wx) {
+          var x = sx(wx);
+          if (x < -20 || x > W + 20) return;
+          ctx.fillRect(x - 3, R.egoY - G.Sim.P.egoW / 2 + 0.5, 6, 4); ctx.fillRect(x - 3, R.egoY + G.Sim.P.egoW / 2 - 4.5, 6, 4);
+        });
+
+        // fixed furniture: crosswalk, stop line, finish
+        var cw = G.GROUND_TRUTH.filter(function (g) { return g.id === 'ped_cross'; })[0].sim.x;
+        ctx.fillStyle = 'rgba(245,247,250,.9)';
+        for (var cy = R.top + 8; cy < R.bottom - 10; cy += 24) ctx.fillRect(sx(cw) - 24, cy, 48, 13);
+        s.actors.forEach(function (a) {
+          if (a.type !== 'light') return;
+          ctx.fillStyle = 'rgba(255,255,255,.95)'; ctx.fillRect(sx(a.x) - 3, R.mid + 2, 6, R.bottom - R.mid - 6);
+        });
+        var fx = sx(G.Sim.P.finishX);
+        for (var ky = R.top; ky < R.bottom; ky += 10) for (var kx = 0; kx < 2; kx++) {
+          ctx.fillStyle = ((ky / 10 + kx) % 2) ? '#111' : '#fff'; ctx.fillRect(fx + kx * 10, ky, 10, 10);
+        }
+
+        // trees on the pavements
+        trees(s).forEach(function (t) {
+          var x = sx(t.x), y = t.top ? 52 : 308;
+          if (x < -30 || x > W + 30) return;
+          ctx.fillStyle = 'rgba(15,23,42,.2)'; ctx.beginPath(); ctx.arc(x + 4, y + 4, t.r, 0, Math.PI * 2); ctx.fill();
+          var g = ctx.createRadialGradient(x - t.r * 0.35, y - t.r * 0.35, 1, x, y, t.r);
+          g.addColorStop(0, '#73c07f'); g.addColorStop(1, '#3f8a4e');
+          ctx.fillStyle = g; ctx.beginPath(); ctx.arc(x, y, t.r, 0, Math.PI * 2); ctx.fill();
+        });
+
+        // the car's sensor field: what it can "see"
+        if (!s.ego.crashed) {
+          var ox = EGO_SCREEN_X + G.Sim.P.egoLen / 2 - 6, rg = G.Sim.P.range.good;
+          var fan = ctx.createRadialGradient(ox, R.egoY, 0, ox, R.egoY, rg);
+          fan.addColorStop(0, 'rgba(125,211,252,.22)'); fan.addColorStop(1, 'rgba(125,211,252,0)');
+          ctx.fillStyle = fan;
+          ctx.beginPath(); ctx.moveTo(ox, R.egoY); ctx.arc(ox, R.egoY, rg, -0.42, 0.42); ctx.closePath(); ctx.fill();
+        }
+
+        // actors
+        s.actors.forEach(function (a) {
+          if (a.type === 'oncoming' && !a.spawned) return;
+          var x = sx(a.x);
+          if (x < -120 || x > W + 120) return;
+          if (a.type === 'light') trafficLight(ctx, x + 8, a.state);
+          else if (a.type === 'static' && a.art.kind === 'sign') signTop(ctx, x, a.y, a.art);
+          else if (a.type === 'static' || a.type === 'lead') carTop(ctx, x, a.y, a.w, a.h, a.art.color, { braking: a.type === 'lead' && a.state === 'stopped' });
+          else if (a.type === 'oncoming') carTop(ctx, x, a.y, a.w, a.h, a.art.color, { flip: true });
+          else if (a.art.kind === 'bike') bikeTop(ctx, x, a.y, a.art);
+          else person(ctx, x, a.y, a.w, a.h, a.art.shirt, a.type === 'crosser', still ? 0 : (a.x + a.y) * 0.35);
+        });
+
+        // ego car
+        carTop(ctx, EGO_SCREEN_X, R.egoY, G.Sim.P.egoLen, G.Sim.P.egoW, '#2563eb', { braking: s.ego.braking, ego: true, hazard: s.ego.crashed && blink });
+        if (s.ego.crashed) impact(ctx, EGO_SCREEN_X + G.Sim.P.egoLen / 2 + 4, R.egoY, s.t - s.crashAt, still);
+      }
+
+      // detection overlays
+      s.actors.forEach(function (a) {
+        if (a.type === 'oncoming' && !a.spawned) return;
+        var d = det[a.id] || { mode: 'missed', label: a.cls, conf: 0 };
+        var dist = (a.type === 'light' ? a.x : a.x - a.w / 2) - f;
+        if (dist > G.Sim.P.range.good || dist < -30) return;
+        var r;
+        if (mode === '3d') {
+          r = G.Sim3D.screenRect(a, s, W, H);
+          if (!r) return;
+        } else {
+          r = G.Sim.rectOf(a);
+          if (a.type === 'light') r = { l: a.x + 8 - 9, r: a.x + 8 + 9, t: 270, b: 316 };
+          else if (a.type === 'static' && a.art.kind === 'sign') r = { l: a.x - 12, r: a.x + 12, t: a.y - 12, b: a.y + 12 };
+          r = { l: sx(r.l), r: sx(r.r), t: r.t, b: r.b };
+        }
+        var pct = Math.round(d.conf * 100);
+        if (a.critical && !a.perceived && d.mode !== 'missed') return;
+        if (a.critical && d.mode === 'missed' && dist > 200) return;
+        if (seen[a.id] == null) seen[a.id] = s.t;
+        var p = still ? 1 : (s.t - seen[a.id]) / 0.3;
+        if (d.mode === 'good') detBox(ctx, r, 'good', d.label + ' ' + pct + '%', p);
+        else if (d.mode === 'late') detBox(ctx, r, 'late', d.label + ' ' + pct + '% (weak)', p);
+        else if (d.wrong) detBox(ctx, r, 'wrong', 'Misread as ' + d.label + '?', p);
+        else detBox(ctx, r, 'missed', 'NOT DETECTED', p);
+      });
+
+      ctx.restore();
+
+      // HUD: speed
+      var kmh = Math.round(s.ego.v * 0.3);
+      ctx.fillStyle = 'rgba(15,23,42,.82)'; G.roundRect(ctx, 10, 10, 132, 34, 8); ctx.fill();
+      ctx.fillStyle = '#fff'; ctx.font = '800 16px system-ui'; ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
+      ctx.fillText(String(kmh), 20, 32);
+      var nw = ctx.measureText(String(kmh)).width;
+      ctx.fillStyle = '#cbd5e1'; ctx.font = '600 11px system-ui'; ctx.fillText('km/h', 24 + nw, 32);
+      ctx.fillStyle = 'rgba(255,255,255,.15)'; G.roundRect(ctx, 76, 23, 56, 6, 3); ctx.fill();
+      ctx.fillStyle = s.ego.braking ? '#f87171' : '#38bdf8'; G.roundRect(ctx, 76, 23, Math.max(6, 56 * clamp01(kmh / 60)), 6, 3); ctx.fill();
+
+      // HUD: route progress with hazards marked
+      var tx0 = 10, tw = W - 20, prog = clamp01(f / G.Sim.P.finishX);
+      ctx.fillStyle = 'rgba(15,23,42,.4)'; G.roundRect(ctx, tx0, H - 12, tw, 5, 2.5); ctx.fill();
+      ctx.fillStyle = '#38bdf8'; G.roundRect(ctx, tx0, H - 12, Math.max(5, tw * prog), 5, 2.5); ctx.fill();
+      s.actors.forEach(function (a) {
+        if (!a.critical) return;
+        var mx = tx0 + tw * clamp01(a.x / G.Sim.P.finishX);
+        ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(mx, H - 9.5, 3, 0, Math.PI * 2); ctx.fill();
+      });
+      ctx.fillStyle = '#fff'; ctx.strokeStyle = '#2563eb'; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.arc(tx0 + tw * prog, H - 9.5, 5, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+
+      // event toasts: slide in, fade out
+      var shown = 0;
+      for (var i = s.events.length - 1; i >= 0 && shown < 3; i--) {
+        var ev = s.events[i], age = s.t - ev.t;
+        if (age > 3.5) break;
+        var c = ev.kind === 'ok' ? '#15803d' : ev.kind === 'warn' ? '#b45309' : '#dc2626';
+        ctx.font = '600 12px system-ui';
+        var tW = ctx.measureText(ev.text).width + 30, slide = still ? 0 : (1 - easeOut(age / 0.3)) * 40;
+        var ty = 10 + shown * 30, tx = W - tW - 10 + slide;
+        ctx.globalAlpha = Math.min(still ? 1 : clamp01(age / 0.2), clamp01((3.5 - age) * 2.5));
+        ctx.fillStyle = 'rgba(15,23,42,.25)'; G.roundRect(ctx, tx + 1, ty + 2, tW, 25, 7); ctx.fill();
+        ctx.fillStyle = c; G.roundRect(ctx, tx, ty, tW, 25, 7); ctx.fill();
+        ctx.fillStyle = 'rgba(255,255,255,.9)'; ctx.beginPath(); ctx.arc(tx + 12, ty + 12.5, 3.5, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = '#fff'; ctx.textAlign = 'left'; ctx.textBaseline = 'middle'; ctx.fillText(ev.text, tx + 22, ty + 13);
+        ctx.globalAlpha = 1; shown++;
+      }
+
+      // outcome card
+      if (s.done) {
+        var o = G.MESSAGES.outcomes[s.outcome], bc = o.tone === 'good' ? '#15803d' : o.tone === 'warn' ? '#b45309' : '#dc2626';
+        var q = still ? 1 : easeOut((performance.now() - outro.t0) / 450);
+        ctx.fillStyle = 'rgba(15,23,42,' + 0.5 * q + ')'; ctx.fillRect(0, 0, W, H);
+        ctx.save();
+        ctx.globalAlpha = q;
+        ctx.translate(W / 2, H / 2 + (1 - q) * 12); ctx.scale(0.96 + 0.04 * q, 0.96 + 0.04 * q);
+        ctx.fillStyle = 'rgba(15,23,42,.35)'; G.roundRect(ctx, -198, -40, 396, 88, 14); ctx.fill();
+        ctx.fillStyle = bc; G.roundRect(ctx, -200, -44, 400, 88, 14); ctx.fill();
+        outcomeIcon(ctx, -158, 0, o.tone);
+        ctx.fillStyle = '#fff'; ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+        ctx.font = '800 24px system-ui'; ctx.fillText(o.label.toUpperCase(), -126, -10, 310);
+        ctx.font = '600 13px system-ui'; ctx.fillStyle = 'rgba(255,255,255,.88)'; ctx.fillText('Simulated outcome. See the feedback below.', -126, 18, 310);
+        ctx.restore();
+      }
+    }
+
+    function draw(s, det) {
+      det = det || {};
+      track(s);
+      lastS = s; lastDet = det;
+      if (s.done && !outro) {
+        outro = { t0: performance.now() };
+        (function tick() {
+          if (lastS !== s || !outro || G.SCENARIO.view !== 'SimView') return;
+          render(s, lastDet);
+          if (performance.now() - outro.t0 < 460 && !reduceMotion.matches) requestAnimationFrame(tick);
+        })();
+        return;
+      }
+      render(s, det);
+    }
+    this.draw = draw;
+    this.setMode = function (m) {
+      mode = m;
+      if (lastS) render(lastS, lastDet);
+    };
+  };
+})(window.GIGO);
+
+// ---- helpers
 function RNG(seed){var s=(seed>>>0)||1;return function(){s^=s<<13;s>>>=0;s^=s>>>17;s>>>=0;s^=s<<5;s>>>=0;return s/4294967296}}
 function rr(r,a,b){return a+(b-a)*r()}
 function pick(r,a){return a[Math.floor(r()*a.length)]}
@@ -832,6 +2160,53 @@ PROJECTS.push({
   nTrain:6,nTest:2,gen:genLane,
   tips:{solid:'Trace the road edge paint, not shadows.',dashed:'Follow the dashes as one long line.',yellow:'A double yellow line is traced once.'},
   reportTitle:'What the lane assist would do'
+});
+
+// ===== 9. Self-driving car (GIGO road scene + GIGO driving simulator) =====
+// The scene you label and the video you watch are built from the same object list, so they always match.
+var DGC={car:'Car',pedestrian:'Pedestrian',bicycle:'Bicycle',trafficlight:'Traffic Light',trafficsign:'Traffic Sign'};
+var DGI={'Car':'car','Pedestrian':'pedestrian','Bicycle':'bicycle','Traffic Light':'trafficlight','Traffic Sign':'trafficsign'};
+function driveObjects(i,test){
+  var G=window.GIGO,base=JSON.parse(JSON.stringify(G.SCENARIOS.road.groundTruth));
+  if(!test&&i===0)return base;
+  var r=RNG(7001+i*131+(test?977:0)),keep=base.filter(function(g){return g.id==='ped_cross'}),rest=shuffle(r,base.filter(function(g){return g.id!=='ped_cross'}));
+  var n=6+Math.floor(r()*4);keep=keep.concat(rest.slice(0,n));
+  var carCols=['#c0392b','#2563eb','#7f8c8d','#2c3e50','#d97706','#0f766e','#7c3aed','#111827'],shirts=['#e67e22','#8e44ad','#e74c3c','#0ea5e9','#16a34a','#db2777'],pants=['#2c3e50','#34495e','#2980b9','#1e293b'],hairs=['#3b2a20','#222','#7a4a21','#c9a227'];
+  keep.forEach(function(g){var b=g.box;
+    b.x=Math.round(cl(b.x+rr(r,-14,14),6,794-b.w));b.y=Math.round(cl(b.y+rr(r,-5,5),g.art.kind==='light'?98:b.y-8,b.y+8));
+    if(g.art.kind==='car')g.art.color=pick(r,carCols);
+    if(g.art.kind==='ped'){g.art.shirt=pick(r,shirts);g.art.pants=pick(r,pants);g.art.hair=pick(r,hairs)}
+    if(g.art.kind==='bike'){g.art.shirt=pick(r,shirts);g.art.color=pick(r,['#10b981','#f59e0b','#3b82f6','#ef4444'])}
+    if(g.art.kind==='sign'&&r()<.4)g.art.sign=g.art.sign==='speed'?'school':'speed'});
+  var order=['car_ahead','ped_cross','cyclist','traffic_light','speed_sign','school_sign','ped_right','ped_left','parked_car','oncoming'];
+  keep.sort(function(a,b){return order.indexOf(a.id)-order.indexOf(b.id)});
+  return keep;
+}
+function genDrive(i,test){
+  var G=window.GIGO,list=driveObjects(i,test);G.GROUND_TRUTH=list;
+  var cv=document.createElement('canvas');cv.width=800;cv.height=500;G.drawScene(cv.getContext('2d'));
+  var url=cv.toDataURL('image/jpeg',.86);
+  var art='<image href="'+url+'" x="0" y="0" width="640" height="400" preserveAspectRatio="none"/>';
+  var gt=list.map(function(g){return {c:DGI[g.cls],gid:g.id,x:f1(g.box.x*.8),y:f1(g.box.y*.8),w:f1(g.box.w*.8),h:f1(g.box.h*.8)}});
+  return {art:art,gt:gt,gz:list,counts:{}};
+}
+PROJECTS.push({
+  id:'drive',name:'Self-driving car',icon:'🚗',type:'box',tag:'Bounding box',
+  blurb:'Label the cars, people, cyclists, lights and signs on a city street, then watch the car drive that exact street.',
+  client:'An autonomous-driving team trains a camera model for a city street. The car brakes only for what it has learned to see, and it learns only from the boxes you draw.',
+  source:'gigo/play.html?scene=road',
+  classes:[
+    {id:'car',name:'Car',color:'#3b82f6',help:'A car on the road, parked or driving. Box the whole car from roof to wheels.'},
+    {id:'pedestrian',name:'Pedestrian',color:'#f59e0b',help:'A person on foot: on the crosswalk, on the pavement, or a child near the kerb. Box the whole person.'},
+    {id:'bicycle',name:'Bicycle',color:'#10b981',help:'A bicycle with its rider. Box both together.'},
+    {id:'trafficlight',name:'Traffic light',color:'#ef4444',help:'The light housing on the pole. Box the housing.'},
+    {id:'trafficsign',name:'Traffic sign',color:'#a855f7',help:'A road sign: speed limit or school zone. Box the sign plate.'}],
+  guide:['Box every car, person, cyclist, traffic light and sign.','Box each object tight, from edge to edge.','One box per object. Two cars get two boxes.','Box a cyclist together with the bicycle.','Pick the right class. People, cyclists and signs are easy to mix up.'],
+  traps:['A child near the kerb is small but still a pedestrian.','A parked car still needs a box.','A cyclist is a bicycle, not a pedestrian.','A speed-limit sign and a school-zone sign are both traffic signs.'],
+  gigo:'If you skip a pedestrian or a cyclist, the car does not brake. If you skip the traffic light, the car runs the red. A loose box makes the car notice late and brake hard.',
+  nTrain:6,nTest:3,gen:genDrive,
+  tips:{car:'Box every car, parked ones too.',pedestrian:'Never skip a person, even a small child.',bicycle:'Include the rider in the box.',trafficlight:'Box only the light housing.',trafficsign:'Box the sign plate, not the pole.'},
+  reportTitle:'What the car did on this street'
 });
 
 // ===== 6. Skin lesion segmentation (pixel classes) =====
