@@ -74,7 +74,7 @@ function plTextMarkup(sc,ann){
 }
 // ---------- player
 function plStart(o){
-  if(P.id==='drive')return plStartDrive(o);
+  if(P.scn)return plStartDrive(o);
   PL.drive=false;if(PL.drvInit){PL.drvInit=0;PL.speed=1}
   // o: {sc,ann,res,rep,mode:'play'|'static'|'keep'}
   var box=$('simview');PL.box=box;PL.sc=o.sc;PL.ann=o.ann;PL.res=o.res;
@@ -158,18 +158,19 @@ function plCtl(){
 }
 
 // ===== Self-driving: the video is GIGO's driving simulator, built from the same objects as the labelled image =====
-function driveDet(sc,pred){
-  var G=window.GIGO;G.GROUND_TRUTH=sc.gz;
-  var boxes=pred.map(function(a,i){return {id:i,x:a.x*1.25,y:a.y*1.25,w:a.w*1.25,h:a.h*1.25,cls:DGC[a.c]}});
-  var ev=G.evaluate(boxes,sc.gz);return {ev:ev,det:G.buildDetections(ev)};
+function driveDet(sc,pred,Pj){
+  Pj=Pj||P;var G=window.GIGO;G.useScenario(Pj.scn);G.GROUND_TRUTH=sc.gz;
+  var boxes=pred.map(function(a,i){return {id:i,x:a.x*1.25,y:a.y*1.25,w:a.w*1.25,h:a.h*1.25,cls:Pj.cmap[a.c]}});
+  var ev=(G.SCENARIO.evaluate||G.evaluate)(boxes,sc.gz);return {ev:ev,det:G.buildDetections(ev)};
 }
-function driveRun(sc,pred){
-  var G=window.GIGO,d=driveDet(sc,pred),s=G.Sim.create(d.det),pass={},k=0;
-  while(!s.done&&k++<9000){G.Sim.step(s,1/60);var f=G.Sim.front(s);s.actors.forEach(function(a){if(pass[a.id]==null&&f>=G.Sim.refX(a))pass[a.id]=s.t})}
-  return {s:s,det:d.det,ev:d.ev,pass:pass,T:s.t};
+function driveRun(sc,pred,Pj){
+  Pj=Pj||P;var G=window.GIGO,d=driveDet(sc,pred,Pj),SC=G.SCENARIO,S=G[SC.sim],s=S.create(d.det),pass={},k=0,road=Pj.scn==='road';
+  while(!s.done&&k++<60000){S.step(s,1/60);if(road){var f=S.front(s);s.actors.forEach(function(a){if(pass[a.id]==null&&f>=S.refX(a))pass[a.id]=s.t})}}
+  if(!road){s.events.forEach(function(e){if(e.id&&pass[e.id]==null)pass[e.id]=e.t});sc.gz.forEach(function(g){if(pass[g.id]==null){var b=g.id.split('_')[0];if(pass[b]!=null)pass[g.id]=pass[b]}})}
+  return {s:s,det:d.det,ev:d.ev,pass:pass,T:s.t,S:S,SC:SC,road:road,Pj:Pj};
 }
 function plStartDrive(o){
-  var G=window.GIGO,box=$('simview'),d=driveRun(o.sc,o.ann);
+  var G=window.GIGO,box=$('simview'),d=driveRun(o.sc,o.ann,P);
   cancelAnimationFrame(PL.raf);clearTimeout(PL.doneTimer);
   PL.box=box;PL.sc=o.sc;PL.ann=o.ann;PL.res=o.res;PL.D=d;PL.drive=true;PL.cam=false;PL.items=[];PL.items_g=null;PL.beam=null;PL.endScan=0;PL.S=1;
   if(!PL.drvInit){PL.drvInit=1;PL.speed=2}
@@ -179,10 +180,10 @@ function plStartDrive(o){
   PL.dur=d.T+2.4;PL.on=true;PL.paused=false;PL.done=false;
   PL.hud=function(){var c={good:0,late:0,missed:0};Object.keys(PL.shown||{}).forEach(function(k){c[PL.shown[k]]++});return '<span class="k ok">'+c.good+' detected</span><span class="k warn">'+c.late+' weak</span><span class="k bad">'+c.missed+' missed</span>'};
   PL.reset=function(){
-    G.GROUND_TRUTH=o.sc.gz;
+    G.useScenario(P.scn);G.GROUND_TRUTH=o.sc.gz;
     box.innerHTML='<div class="drv"><div class="drvimg"><canvas id="drvcv" class="cv drvcv" width="800" height="500" aria-label="Driving simulation"></canvas>'
-      +'<div class="plcnt" id="plcnt" style="bottom:22px"></div></div></div><div class="pltoasts" id="pltoasts" hidden></div><div class="plban" id="plban" hidden></div>';
-    PL.sim=G.Sim.create(d.det);PL.simT=0;PL.view=new G.SimView($('drvcv'));PL.shown={};PL.i=0;PL.ri=0;PL.cnt={};$('report').innerHTML='';
+      +'<div class="plcnt" id="plcnt" style="'+(P.scn==='drone'||P.scn==='crop'?'top:8px;bottom:auto':'bottom:22px')+'"></div>'+(d.SC.has3d?'<button type="button" id="drv3d" class="btn sm" style="position:absolute;top:8px;right:8px;z-index:3">3D view</button>':'')+'</div></div><div class="pltoasts" id="pltoasts" hidden></div><div class="plban" id="plban" hidden></div>';
+    PL.sim=d.S.create(d.det);PL.simT=0;PL.view=new G[d.SC.view]($('drvcv'));if(d.SC.has3d){PL.view.setMode(PL.m3||'2d');var b3=$('drv3d');if(b3){b3.textContent=PL.m3==='3d'?'2D view':'3D view';b3.onclick=function(){PL.m3=PL.m3==='3d'?'2d':'3d';PL.view.setMode(PL.m3);b3.textContent=PL.m3==='3d'?'2D view':'3D view';PL.view.draw(PL.sim,d.det)}}}PL.shown={};PL.i=0;PL.ri=0;PL.cnt={};$('report').innerHTML='';
   };
   PL.last=performance.now();
   plSeek(o.mode==='static'?PL.dur:keepT);plCtl();
@@ -190,15 +191,19 @@ function plStartDrive(o){
   if(PL.t<PL.dur)PL.raf=requestAnimationFrame(plFrame);
 }
 function plDriveAdvance(){
-  var G=window.GIGO,d=PL.D,s=PL.sim,target=Math.min(PL.t,d.T+.5),k=0;
-  G.GROUND_TRUTH=PL.sc.gz;
-  while(PL.simT+1/60<=target&&k++<4000){G.Sim.step(s,1/60);PL.simT+=1/60}
-  var f=G.Sim.front(s);
-  s.actors.forEach(function(a){
-    if(PL.shown[a.id]||(a.type==='oncoming'&&!a.spawned))return;
-    var det=d.det[a.id]||{mode:'missed'},dist=G.Sim.refX(a)-f,lim=det.mode==='missed'?(a.critical?G.Sim.P.range.late:90):G.Sim.P.range.good;
-    if(dist>lim||dist<-30)return;
-    PL.shown[a.id]=det.wrong?'missed':det.mode;
-  });
+  var G=window.GIGO,d=PL.D,s=PL.sim,S=d.S,target=Math.min(PL.t,d.T+.5),k=0;
+  G.useScenario(P.scn);G.GROUND_TRUTH=PL.sc.gz;
+  while(PL.simT+1/60<=target&&k++<60000){S.step(s,1/60);PL.simT+=1/60}
+  if(d.road){
+    var f=S.front(s);
+    s.actors.forEach(function(a){
+      if(PL.shown[a.id]||(a.type==='oncoming'&&!a.spawned))return;
+      var det=d.det[a.id]||{mode:'missed'},dist=S.refX(a)-f,lim=det.mode==='missed'?(a.critical?S.P.range.late:90):S.P.range.good;
+      if(dist>lim||dist<-30)return;
+      PL.shown[a.id]=det.wrong?'missed':det.mode;
+    });
+  }else{
+    PL.sc.gz.forEach(function(g){if(PL.shown[g.id]||g.id.indexOf('_')>0)return;var t=d.pass[g.id];if(t==null||t>PL.simT)return;var det=d.det[g.id]||{mode:'missed'};PL.shown[g.id]=det.wrong?'missed':det.mode});
+  }
   PL.view.draw(s,d.det);
 }

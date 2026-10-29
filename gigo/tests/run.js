@@ -211,7 +211,7 @@ ok(r.s.outcome === 'warnings', 'llm nothing matched -> warnings');
 // ---- warehouse pictures (photos converted from Project Lab)
 (function () {
   var pics = G.whPictures();
-  ok(pics.length === 6, 'warehouse has 6 pictures (' + pics.length + ')');
+  ok(pics.length === 9, 'warehouse has 9 pictures (' + pics.length + ')');
   pics.forEach(function (p, i) {
     G.whUse(i);
     var gt = G.GROUND_TRUTH, persons = gt.filter(function (g) { return g.cls === 'Person'; });

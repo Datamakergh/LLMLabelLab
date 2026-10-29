@@ -83,7 +83,7 @@ REP.churn=function(sc,pred,P){
   return {html:html,bad:(sOk&&cOk)?0:1};
 };
 REP.drive=function(sc,pred,P){
-  var d=driveRun(sc,pred),S=window.GIGO.SCENARIO,rows='',bad=0,s=d.s,ord=s.actors.slice().sort(function(a,b){return window.GIGO.Sim.refX(a)-window.GIGO.Sim.refX(b)});
+  var d=driveRun(sc,pred,P),S=window.GIGO.SCENARIO,rows='',bad=0,s=d.s,ord=s.actors.slice().sort(function(a,b){return window.GIGO.Sim.refX(a)-window.GIGO.Sim.refX(b)});
   function row(ok,t,tag,id){return li(ok,t,tag).replace('<li ','<li data-id="'+id+'" ')}
   ord.forEach(function(a){var r=s.results[a.id],sh=a.short,Sh=sh.charAt(0).toUpperCase()+sh.slice(1),det=d.det[a.id]||{};
     if(a.critical){
@@ -101,3 +101,23 @@ REP.drive=function(sc,pred,P){
   return {html:rows,bad:bad};
 };
 
+
+// generic report for the GIGO scene projects (warehouse, drone, crop); road reuses REP.drive
+var GOKRES={safe:1,stopped:1,cleared:1,alert:1,counted:1,ok:1};
+function gTag(r){return ({incident:'Incident',unchecked:'Unchecked',near_miss:'Near miss',late_check:'Late check',false_alarm:'False alarm',stopped:'Stopped',cleared:'Cleared',missed_warning:'Missed',not_checked:'Not checked',alert_missed:'Alert missed',late_alert:'Late alert',alert:'Alert sent',counted:'Counted',mixup:'Mix-up',uncertain:'Unsure',ok:'Treated',outbreak:'Outbreak',late_treat:'Late treatment',late:'Late',wasted:'Wasted spray',wrong_tx:'Wrong treatment'})[r]||r}
+function gigoReport(sc,pred,P){
+  var d=driveRun(sc,pred,P),G=window.GIGO,S=d.SC,s=d.s,rows='',bad=0;
+  function row(ok,t,tag,id){return li(ok,t,tag).replace('<li ','<li data-id="'+id+'" ')}
+  var gz=sc.gz.slice().sort(function(a,b){return (d.pass[a.id]==null?1e9:d.pass[a.id])-(d.pass[b.id]==null?1e9:d.pass[b.id])});
+  gz.forEach(function(g){var r=s.results[g.id];if(r==null)return;var sh=g.short,Sh=sh.charAt(0).toUpperCase()+sh.slice(1),det=d.det[g.id]||{};
+    if(GOKRES[r]){if(g.id.indexOf('_')>0&&!g.critical)return;rows+=row(true,Sh+(det.mode==='late'?': handled, with a loose box.':': handled correctly.'),gTag(r),g.id);return}
+    var txt=r==='missed_warning'?g.warn:(g.critical?S.critical:S.minor)[r];
+    if(r==='not_checked')return;
+    bad++;var why=det.wrong?'It was labelled as the wrong thing. ':det.mode==='missed'?'It had no box. ':det.mode==='late'?'Its box was loose. ':'';
+    rows+=row(false,Sh+': '+why+String(txt||'').replace(/\{short\}/g,sh).replace(/\{alert\}/g,g.alert||'alert'),gTag(r),g.id)});
+  var ex=d.ev.counts.spurious+d.ev.counts.duplicate;
+  if(ex){bad++;rows+=row(false,ex+' extra box'+(ex>1?'es':'')+' on nothing. The model can act on things that are not there.','False alarm','x')}
+  var oc=S.outcomes[s.outcome];rows+=li(s.outcome==='safe',oc.label+'. '+oc.text,({safe:'Safe',warnings:'Warnings',near_miss:'Near miss',collision:'Failure'})[s.outcome]).replace('<li ','<li data-id="end" ');
+  return {html:rows,bad:bad};
+}
+REP.g_warehouse=REP.g_drone=REP.g_crop=gigoReport;REP.g_road=REP.drive;

@@ -182,7 +182,7 @@ window.GIGO = window.GIGO || {};
     // a motorbike hidden by the bushes (not an annotation target)
     ctx.strokeStyle = '#111827'; ctx.lineWidth = 4; ctx.beginPath(); ctx.moveTo(334, 452); ctx.lineTo(356, 446); ctx.stroke();
     ctx.fillStyle = '#1f2937'; ell(ctx, 330, 453, 4, 3); ctx.fill(); ell(ctx, 360, 445, 4, 3); ctx.fill();
-    GT.forEach(function (g) { G.drawAnimal(ctx, g); });
+    (G.SCENARIOS.drone.groundTruth || GT).forEach(function (g) { G.drawAnimal(ctx, g); });
     var vg = ctx.createRadialGradient(W / 2, H / 2, H * 0.4, W / 2, H / 2, W * 0.7);
     vg.addColorStop(0, 'rgba(30,25,10,0)'); vg.addColorStop(1, 'rgba(30,25,10,.18)');
     ctx.fillStyle = vg; ctx.fillRect(0, 0, W, H);

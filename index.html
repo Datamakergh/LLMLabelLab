@@ -670,8 +670,8 @@ window.addEventListener('resize',function(){DECK.scrollTo({left:VIS.indexOf(cur)
 setCur(0);
 
 // ---- practice hub: progress through the projects
-var PP=[['ppe','🦺','Safety equipment detection'],['graze','🐄','Grazing and wildlife monitoring'],['crop','🌿','Crop pest and disease'],['coffee','☕','Coffee leaf disease'],['lane','🛣️','Car lane detection'],['drive','🚗','Self-driving car'],['skin','🩺','Skin lesion mapping'],['pose','🏃','Exercise coaching keypoints'],['churn','💬','Coffee customer churn']],
-  PG=[['road','🚦','Self-driving car: road safety'],['warehouse','🦺','Warehouse PPE gate'],['drone','🦁','Drone wildlife census'],['crop','🌽','Maize disease scout'],['llm','💬','LLM answer check']];
+var PP=[['ppe','🦺','Safety equipment detection'],['graze','🐄','Grazing and wildlife monitoring'],['crop','🌿','Crop pest and disease'],['coffee','☕','Coffee leaf disease'],['lane','🛣️','Car lane detection'],['drive','🚗','Self-driving car'],['skin','🩺','Skin lesion mapping'],['pose','🏃','Exercise coaching keypoints'],['churn','💬','Coffee customer churn'],['g_road','🚦','Self-driving car: road safety (GIGO scene)'],['g_warehouse','🦺','Warehouse PPE gate (GIGO scene)'],['g_drone','🦁','Drone wildlife census (GIGO scene)'],['g_crop','🌽','Maize disease scout (GIGO scene)']],
+  PG=[['llm','💬','LLM answer check']];
 function ppRender(){
   var best={};try{best=JSON.parse(localStorage.getItem('llp_best')||'{}')}catch(e){}
   var done=PP.filter(function(p){return best[p[0]]!=null}).length,next=PP.filter(function(p){return best[p[0]]==null})[0];

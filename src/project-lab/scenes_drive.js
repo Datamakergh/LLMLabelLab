@@ -2,10 +2,11 @@
 // The scene you label and the video you watch are built from the same object list, so they always match.
 var DGC={car:'Car',pedestrian:'Pedestrian',bicycle:'Bicycle',trafficlight:'Traffic Light',trafficsign:'Traffic Sign'};
 var DGI={'Car':'car','Pedestrian':'pedestrian','Bicycle':'bicycle','Traffic Light':'trafficlight','Traffic Sign':'trafficsign'};
-function driveObjects(i,test){
-  var G=window.GIGO,base=JSON.parse(JSON.stringify(G.SCENARIOS.road.groundTruth));
+var driveBase=null;
+function driveObjects(i,test,salt){
+  var G=window.GIGO,base=JSON.parse(JSON.stringify(driveBase||G.SCENARIOS.road.groundTruth));salt=salt||0;
   if(!test&&i===0)return base;
-  var r=RNG(7001+i*131+(test?977:0)),keep=base.filter(function(g){return g.id==='ped_cross'}),rest=shuffle(r,base.filter(function(g){return g.id!=='ped_cross'}));
+  var r=RNG(7001+salt*17+i*131+(test?977:0)),keep=base.filter(function(g){return g.id==='ped_cross'}),rest=shuffle(r,base.filter(function(g){return g.id!=='ped_cross'}));
   var n=6+Math.floor(r()*4);keep=keep.concat(rest.slice(0,n));
   var carCols=['#c0392b','#2563eb','#7f8c8d','#2c3e50','#d97706','#0f766e','#7c3aed','#111827'],shirts=['#e67e22','#8e44ad','#e74c3c','#0ea5e9','#16a34a','#db2777'],pants=['#2c3e50','#34495e','#2980b9','#1e293b'],hairs=['#3b2a20','#222','#7a4a21','#c9a227'];
   keep.forEach(function(g){var b=g.box;

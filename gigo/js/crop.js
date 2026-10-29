@@ -140,7 +140,7 @@ window.GIGO = window.GIGO || {};
       ctx.strokeStyle = '#c8a54a'; ctx.lineWidth = 2;
       for (var t = -2; t <= 2; t++) { ctx.beginPath(); ctx.moveTo(sx, 30); ctx.quadraticCurveTo(sx + t * 8, 10, sx + t * 12, 18); ctx.stroke(); }
     });
-    GT.forEach(function (g, k) { G.drawLeaf(ctx, g, 20 + k); });
+    (G.SCENARIOS.crop.groundTruth || GT).forEach(function (g, k) { G.drawLeaf(ctx, g, 20 + k); });
     var vg = ctx.createRadialGradient(W / 2, H / 2, H * 0.4, W / 2, H / 2, W * 0.75);
     vg.addColorStop(0, 'rgba(20,30,10,0)'); vg.addColorStop(1, 'rgba(20,30,10,.2)');
     ctx.fillStyle = vg; ctx.fillRect(0, 0, W, H);
