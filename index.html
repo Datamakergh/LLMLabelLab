@@ -665,7 +665,7 @@ function setCur(i){cur=i;
   $('pgPrev').hidden=i===0;$('pgNext').hidden=i===4;if(i===4){ppRender();if(window.gmRender)gmRender(true)}}
 $('dotsNav').innerHTML=['Overview','How it works','Practice'].map(function(n,k){return '<button type="button" role="tab" aria-label="'+n+'" data-go="'+VIS[k]+'"></button>'}).join('');
 DECK.addEventListener('scroll',function(){var i=VIS[Math.round(DECK.scrollLeft/DECK.clientWidth)];if(i!==undefined&&i!==cur)setCur(i)},{passive:true});
-document.addEventListener('click',function(e){var a=e.target.closest&&e.target.closest('[data-go]');if(a){e.preventDefault();goTo(+a.dataset.go)}});
+document.addEventListener('click',function(e){var a=e.target.closest&&e.target.closest('[data-go]');if(a){e.preventDefault();if(document.body.classList.contains('labonly')&&a.closest('.sitenav')){location.href='index.html'+(+a.dataset.go===4?'#practice':'');return}goTo(+a.dataset.go)}});
 $('pgPrev').onclick=function(){goTo(VIS[Math.max(0,VIS.indexOf(cur)-1)])};$('pgNext').onclick=function(){goTo(VIS[Math.min(VIS.length-1,VIS.indexOf(cur)+1)])};
 window.addEventListener('resize',function(){DECK.scrollTo({left:VIS.indexOf(cur)*DECK.clientWidth})});
 setCur(0);
