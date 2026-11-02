@@ -21,7 +21,7 @@ window.GIGO = window.GIGO || {};
 
   G.THRESHOLDS = {
     match: 0.3,        // IoU needed for a box to count as "on" an object
-    good: 0.75,          // IoU at/above which the simulated AI detects the object reliably
+    good: 0.65,          // IoU at/above which the simulated AI detects the object reliably
     fullCredit: 0.8,     // IoU at/above which an object earns full box credit
     wrongClassFactor: 0.4,
     duplicatePenalty: 3, // points lost per duplicate box
